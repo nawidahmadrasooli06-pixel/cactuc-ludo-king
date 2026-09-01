@@ -1,941 +1,1238 @@
 const tg = window.Telegram?.WebApp;
-if (tg) {
-  tg.ready();
-  tg.expand();
+
+if(tg){
+    tg.ready();
+    tg.expand();
 }
-/* =====================================================
-   CACTUC LUDO KING
-   LOCAL TEST VERSION
-   PLAYER VS COMPUTER
-===================================================== */
-const board = document.getElementById("board");
+
+/* =========================
+   BASIC
+========================= */
+
+const CHANNEL_URL = "https://t.me/CROOK_Cake";
+const USERNAME = "@cactuc580";
+
+const colors = ["red","yellow","green","blue"];
+const colorNames = {
+    red:"قرمز",
+    yellow:"زرد",
+    green:"سبز",
+    blue:"آبی"
+};
+
+const diceFaces = ["⚀","⚁","⚂","⚃","⚄","⚅"];
+
+/* =========================
+   SCREEN
+========================= */
+
 const menu = document.getElementById("menu");
-const playerCountScreen =
-  document.getElementById("playerCountScreen");
-const roomScreen =
-  document.getElementById("roomScreen");
-const joinScreen =
-  document.getElementById("joinScreen");
-const gameScreen =
-  document.getElementById("gameScreen");
-const settings =
-  document.getElementById("settings");
-const playerDice =
-  document.getElementById("playerDice");
-const botDice =
-  document.getElementById("botDice");
-const playerHint =
-  document.getElementById("playerHint");
-const botHint =
-  document.getElementById("botHint");
-const turnText =
-  document.getElementById("turnText");
-const gameMessage =
-  document.getElementById("gameMessage");
-let gameMode = "computer";
+const roomScreen = document.getElementById("roomScreen");
+const joinScreen = document.getElementById("joinScreen");
+const gameScreen = document.getElementById("gameScreen");
+
+function showScreen(screen){
+    [menu,roomScreen,joinScreen,gameScreen]
+        .forEach(x=>x.classList.add("hidden"));
+
+    screen.classList.remove("hidden");
+}
+
+/* =========================
+   TELEGRAM CHANNEL
+========================= */
+
+function openChannel(){
+    if(tg && tg.openTelegramLink){
+        tg.openTelegramLink(CHANNEL_URL);
+    }else{
+        window.open(CHANNEL_URL,"_blank");
+    }
+}
+
+/* =========================
+   MENU
+========================= */
+
+const channelButton = document.createElement("button");
+
+channelButton.className = "menuBtn";
+channelButton.textContent = "📢 کانال من";
+
+channelButton.onclick = openChannel;
+
+menu.insertBefore(
+    channelButton,
+    document.querySelector(".creator")
+);
+
+/* =========================
+   ROOM
+========================= */
+
+let currentRoom = null;
+let selectedPlayerCount = 2;
+
+function createRoomCode(){
+    return Math.floor(
+        100000 + Math.random()*900000
+    ).toString();
+}
+
+function createRoom(){
+
+    currentRoom = createRoomCode();
+
+    document.getElementById("roomCode")
+        .textContent = currentRoom;
+
+    renderRoomPlayers();
+
+    showScreen(roomScreen);
+}
+
+function renderRoomPlayers(){
+
+    const box =
+        document.getElementById("roomPlayers");
+
+    box.innerHTML = "";
+
+    for(let i=0;i<selectedPlayerCount;i++){
+
+        const div =
+            document.createElement("div");
+
+        div.className = "roomPlayer";
+
+        if(i===0){
+
+            div.textContent =
+                "🔴 " + getPlayerName();
+
+        }else{
+
+            div.textContent =
+                "⏳ در انتظار بازیکن...";
+        }
+
+        box.appendChild(div);
+    }
+}
+
+/* PLAYER COUNT */
+
+document.querySelectorAll(
+    ".roomCount button"
+).forEach(btn=>{
+
+    btn.onclick = ()=>{
+
+        selectedPlayerCount =
+            Number(btn.dataset.count);
+
+        document.querySelectorAll(
+            ".roomCount button"
+        ).forEach(x=>
+            x.classList.remove("active")
+        );
+
+        btn.classList.add("active");
+
+        renderRoomPlayers();
+    };
+
+});
+
+document.querySelector(
+    '.roomCount button[data-count="2"]'
+).classList.add("active");
+
+/* COPY */
+
+document.getElementById(
+    "copyCodeBtn"
+).onclick = async ()=>{
+
+    try{
+        await navigator.clipboard.writeText(
+            currentRoom
+        );
+    }catch{
+        const input =
+            document.createElement("input");
+
+        input.value = currentRoom;
+
+        document.body.appendChild(input);
+
+        input.select();
+
+        document.execCommand("copy");
+
+        input.remove();
+    }
+
+    message("کد اتاق کپی شد ✓");
+};
+
+/* JOIN */
+
+document.getElementById(
+    "joinBtn"
+).onclick = ()=>{
+
+    const value =
+        document.getElementById(
+            "roomInput"
+        ).value.trim();
+
+    if(!/^\d{6}$/.test(value)){
+
+        alert("کد باید ۶ رقمی باشد.");
+
+        return;
+    }
+
+    currentRoom = value;
+
+    startComputerGame();
+};
+
+/* =========================
+   PLAYER
+========================= */
+
+function getPlayerName(){
+
+    if(
+        tg &&
+        tg.initDataUnsafe &&
+        tg.initDataUnsafe.user
+    ){
+
+        return (
+            tg.initDataUnsafe.user.first_name
+            || "Player"
+        );
+    }
+
+    return "Player";
+}
+
+/* =========================
+   LUDO ENGINE
+========================= */
+
+let players = [];
 let currentPlayer = 0;
 let rolled = false;
 let currentRoll = 0;
-let moving = false;
-const colors = [
-  "blue",
-  "red"
-];
-const names = [
-  "تو",
-  "کامپیوتر"
-];
-/* =====================================================
-   LUDO PATH
-===================================================== */
+let gameMode = "computer";
+let gameStarted = false;
+let rankings = [];
+
+/*
+   52 خانه اصلی
+*/
+
 const path = [
-  [50, 17],
-  [43, 17],
-  [37, 17],
-  [30, 17],
-  [23, 17],
-  [17, 23],
-  [17, 30],
-  [17, 37],
-  [17, 43],
-  [17, 50],
-  [17, 57],
-  [17, 63],
-  [23, 63],
-  [30, 63],
-  [37, 63],
-  [43, 70],
-  [50, 70],
-  [57, 70],
-  [63, 70],
-  [70, 63],
-  [70, 57],
-  [70, 50],
-  [70, 43],
-  [70, 37],
-  [70, 30],
-  [63, 30],
-  [57, 30],
-  [50, 30],
-  [50, 37],
-  [50, 43],
-  [50, 50],
-  [50, 57]
+
+[6,1],[6,2],[6,3],[6,4],[6,5],
+[5,6],[4,6],[3,6],[2,6],[1,6],
+[0,6],[0,7],[0,8],
+[1,8],[2,8],[3,8],[4,8],[5,8],
+[6,9],[6,10],[6,11],[6,12],[6,13],[6,14],
+[7,14],[8,14],
+[8,13],[8,12],[8,11],[8,10],[8,9],
+[9,8],[10,8],[11,8],[12,8],[13,8],[14,8],
+[14,7],[14,6],
+[13,6],[12,6],[11,6],[10,6],[9,6],
+[8,5],[8,4],[8,3],[8,2],[8,1],[8,0],
+[7,0],[6,0]
+
 ];
+
+const starts = [0,13,26,39];
+
+const safeSquares = new Set([
+    0,8,13,21,26,34,39,47
+]);
+
 /*
-  Four home positions.
+   مسیر پایانی هر رنگ
 */
-const homePositions = {
-  blue: [
-    [29, 76],
-    [42, 76],
-    [29, 88],
-    [42, 88]
-  ],
-  red: [
-    [29, 12],
-    [42, 12],
-    [29, 24],
-    [42, 24]
-  ]
+
+const lanes = {
+
+    red:[
+        [5,7],
+        [4,7],
+        [3,7],
+        [2,7],
+        [1,7],
+        [0,7]
+    ],
+
+    yellow:[
+        [7,9],
+        [7,10],
+        [7,11],
+        [7,12],
+        [7,13],
+        [7,14]
+    ],
+
+    green:[
+        [9,7],
+        [10,7],
+        [11,7],
+        [12,7],
+        [13,7],
+        [14,7]
+    ],
+
+    blue:[
+        [7,5],
+        [7,4],
+        [7,3],
+        [7,2],
+        [7,1],
+        [7,0]
+    ]
+
 };
-/* =====================================================
-   PLAYER DATA
-===================================================== */
-let players = [
-  {
-    color: "blue",
-    pieces: [-1, -1, -1, -1]
-  },
-  {
-    color: "red",
-    pieces: [-1, -1, -1, -1]
-  }
-];
-/*
-  -1 = inside home
-  0..27 = track
-  28..31 = final lane
-  32 = finished
-*/
-/* =====================================================
-   DICE
-===================================================== */
-const diceFaces = [
-  "⚀",
-  "⚁",
-  "⚂",
-  "⚃",
-  "⚄",
-  "⚅"
-];
-function setDice(button, number) {
-  if (!button) return;
-  button.firstChild.textContent =
-    diceFaces[number - 1] || "⚄";
-}
-/* =====================================================
-   SCREEN
-===================================================== */
-function hideAllScreens() {
-  menu.classList.add("hidden");
-  playerCountScreen.classList.add("hidden");
-  roomScreen.classList.add("hidden");
-  joinScreen.classList.add("hidden");
-  gameScreen.classList.add("hidden");
-}
-function show(screen) {
-  hideAllScreens();
-  screen.classList.remove("hidden");
-}
-/* =====================================================
-   PLAYER COUNT
-===================================================== */
-document
-  .querySelectorAll(".countBtn")
-  .forEach(button => {
-    button.onclick = () => {
-      const count =
-        Number(button.dataset.count);
-      if (count === 2) {
-        startComputerGame();
-      } else {
-        alert(
-          "بازی چندنفره آنلاین در مرحله بعد فعال می‌شود."
-        );
-      }
-    };
-  });
-/* =====================================================
-   START COMPUTER GAME
-===================================================== */
-function startComputerGame() {
-  gameMode = "computer";
-  players = [
-    {
-      color: "blue",
-      pieces: [-1, -1, -1, -1]
-    },
-    {
-      color: "red",
-      pieces: [-1, -1, -1, -1]
+
+/* =========================
+   RESET
+========================= */
+
+function resetGame(count=2){
+
+    players = [];
+
+    for(let i=0;i<count;i++){
+
+        players.push({
+            color:colors[i],
+            pieces:[-1,-1,-1,-1],
+            finished:0
+        });
     }
-  ];
-  currentPlayer = 0;
-  rolled = false;
-  currentRoll = 0;
-  moving = false;
-  setDice(playerDice, 5);
-  setDice(botDice, 5);
-  show(gameScreen);
-  playerHint.textContent =
-    "نوبت تو — تاس را بزن";
-  botHint.textContent =
-    "منتظر نوبت";
-  playerHint.classList.add("active");
-  botHint.classList.remove("active");
-  turnText.textContent =
-    "🔵 نوبت تو";
-  gameMessage.textContent =
-    "تاس را بزن";
-  renderBoard();
+
+    currentPlayer = 0;
+    rolled = false;
+    currentRoll = 0;
+    rankings = [];
+    gameStarted = true;
 }
-/* =====================================================
+
+/*
+ -1 = داخل خانه
+ 0..51 = مسیر
+ 52..57 = مسیر نهایی
+*/
+
+function positionOf(playerIndex,pieceIndex){
+
+    const value =
+        players[playerIndex]
+        .pieces[pieceIndex];
+
+    if(value < 0){
+        return null;
+    }
+
+    if(value <= 51){
+
+        const index =
+            (starts[playerIndex] + value) % 52;
+
+        return path[index];
+    }
+
+    const laneIndex =
+        value - 52;
+
+    const color =
+        players[playerIndex].color;
+
+    return lanes[color][laneIndex];
+}
+
+/* =========================
    BOARD
-===================================================== */
-function renderBoard() {
-  board
-    .querySelectorAll(".boardPiece")
-    .forEach(piece => piece.remove());
-  board
-    .querySelectorAll(".rankBadge")
-    .forEach(badge => badge.remove());
-  players.forEach(
-    (player, playerIndex) => {
-      player.pieces.forEach(
-        (position, pieceIndex) => {
-          if (position === -1) {
-            return;
-          }
-          const piece =
-            document.createElement("button");
-          piece.className =
-            `boardPiece ${player.color}`;
-          piece.dataset.player =
-            playerIndex;
-          piece.dataset.piece =
-            pieceIndex;
-          if (
-            playerIndex === currentPlayer &&
-            rolled &&
-            canMove(
-              playerIndex,
-              pieceIndex,
-              currentRoll
-            )
-          ) {
-            piece.classList.add(
-              "selectable"
-            );
-          }
-          let coords =
-            getPieceCoordinates(
-              playerIndex,
-              pieceIndex,
-              position
-            );
-          piece.style.left =
-            coords[0] + "%";
-          piece.style.top =
-            coords[1] + "%";
-          piece.onclick = () => {
-            if (
-              playerIndex !==
-              currentPlayer
-            ) {
-              return;
-            }
-            movePiece(
-              playerIndex,
-              pieceIndex
-            );
-          };
-          board.appendChild(piece);
+========================= */
+
+function cell(row,col){
+
+    return document.getElementById(
+        "board"
+    ).children[row*15+col];
+}
+
+function buildBoard(){
+
+    const board =
+        document.getElementById("board");
+
+    board.innerHTML = "";
+
+    for(let r=0;r<15;r++){
+
+        for(let c=0;c<15;c++){
+
+            const el =
+                document.createElement("div");
+
+            el.className="cell";
+
+            /* HOME */
+
+            if(r<=5 && c<=5)
+                el.classList.add("home-red");
+
+            else if(r<=5 && c>=9)
+                el.classList.add("home-yellow");
+
+            else if(r>=9 && c<=5)
+                el.classList.add("home-green");
+
+            else if(r>=9 && c>=9)
+                el.classList.add("home-blue");
+
+            board.appendChild(el);
         }
-      );
+    }
+
+    /*
+      مسیر اصلی
+    */
+
+    path.forEach((p,index)=>{
+
+        const el = cell(p[0],p[1]);
+
+        el.className = "cell path";
+
+        if(safeSquares.has(index))
+            el.classList.add("safe");
+
+        if(index===starts[0])
+            el.classList.add("start-red");
+
+        if(index===starts[1])
+            el.classList.add("start-yellow");
+
+        if(index===starts[2])
+            el.classList.add("start-green");
+
+        if(index===starts[3])
+            el.classList.add("start-blue");
+
+    });
+
+    /*
+      مسیرهای پایانی
+    */
+
+    Object.entries(lanes).forEach(
+        ([color,coords])=>{
+
+            coords.forEach(
+                ([r,c])=>{
+
+                    cell(r,c).className =
+                        "cell lane-"+color;
+                }
+            );
+        }
+    );
+
+    /*
+      مرکز
+    */
+
+    for(let r=6;r<=8;r++){
+
+        for(let c=6;c<=8;c++){
+
+            cell(r,c).className =
+                "cell center";
+        }
+    }
+
+    /*
+      خانه‌های شروع
+    */
+
+    createHomeSpots();
+}
+
+/* =========================
+   HOME SPOTS
+========================= */
+
+function createHomeSpots(){
+
+    const homes = {
+
+        red:[1,1,1,4,4,1,4,4],
+
+        yellow:[1,10,1,13,4,10,4,13],
+
+        green:[10,1,10,4,13,1,13,4],
+
+        blue:[10,10,10,13,13,10,13,13]
+
+    };
+
+    Object.entries(homes)
+    .forEach(([color,data])=>{
+
+        for(let i=0;i<4;i++){
+
+            const r=data[i*2];
+            const c=data[i*2+1];
+
+            const spot =
+                document.createElement("div");
+
+            spot.className="homeInner";
+
+            const inner =
+                document.createElement("div");
+
+            inner.className="homeSpot";
+
+            spot.appendChild(inner);
+
+            /*
+              به شکل ساده خانه‌ها را
+              در خود محدوده رنگی نشان می‌دهیم
+            */
+
+            cell(r,c).innerHTML="";
+            cell(r,c).appendChild(spot);
+        }
     });
 }
-/* =====================================================
-   COORDINATES
-===================================================== */
-function getPieceCoordinates(
-  playerIndex,
-  pieceIndex,
-  position
-) {
-  const player =
-    players[playerIndex];
-  const color =
-    player.color;
-  /*
-    Finished pieces remain visible
-    around the center.
-  */
-  if (position === 32) {
-    const finishPositions =
-      color === "blue"
-        ? [
-            [45, 45],
-            [48, 45],
-            [45, 49],
-            [48, 49]
-          ]
-        : [
-            [52, 51],
-            [55, 51],
-            [52, 55],
-            [55, 55]
-          ];
-    return finishPositions[pieceIndex];
-  }
-  /*
-    Home pieces.
-  */
-  if (position === -1) {
-    return homePositions[
-      color
-    ][pieceIndex];
-  }
-  /*
-    Normal path.
-  */
-  if (position < 28) {
-    return path[position];
-  }
-  /*
-    Final lane.
-  */
-  const lane = position - 28;
-  if (color === "blue") {
-    return [
-      50,
-      63 - lane * 5
-    ];
-  }
-  return [
-    50,
-    37 + lane * 5
-  ];
-}
-/* =====================================================
-   MOVEMENT RULE
-===================================================== */
-function canMove(
-  playerIndex,
-  pieceIndex,
-  dice
-) {
-  const value =
-    players[playerIndex]
-      .pieces[pieceIndex];
-  if (value === 32) {
-    return false;
-  }
-  /*
-    Six takes a piece out of home.
-  */
-  if (value === -1) {
-    return dice === 6;
-  }
-  return (
-    value + dice <= 32
-  );
-}
-/* =====================================================
-   ROLL PLAYER
-===================================================== */
-playerDice.onclick = () => {
-  if (
-    currentPlayer !== 0 ||
-    rolled ||
-    moving
-  ) {
-    return;
-  }
-  rollPlayerDice();
-};
-function rollPlayerDice() {
-  currentRoll =
-    Math.floor(
-      Math.random() * 6
-    ) + 1;
-  setDice(
-    playerDice,
-    currentRoll
-  );
-  rolled = true;
-  playerHint.classList.remove(
-    "active"
-  );
-  gameMessage.textContent =
-    `تاس تو: ${currentRoll}`;
-  renderBoard();
-  const possible =
-    players[0]
-      .pieces
-      .some(
-        (_, index) =>
-          canMove(
-            0,
-            index,
-            currentRoll
-          )
-      );
-  if (!possible) {
-    gameMessage.textContent =
-      "حرکت ممکن نیست.";
-    rolled = false;
-    setTimeout(
-      nextTurn,
-      900
+
+/* =========================
+   RENDER
+========================= */
+
+function render(){
+
+    document.querySelectorAll(
+        ".piece"
+    ).forEach(x=>x.remove());
+
+    players.forEach(
+        (player,pi)=>{
+
+            player.pieces.forEach(
+                (value,mi)=>{
+
+                    const pos =
+                        positionOf(pi,mi);
+
+                    if(!pos) return;
+
+                    const el =
+                        document.createElement("button");
+
+                    el.className =
+                        "piece "+player.color;
+
+                    if(
+                        pi===currentPlayer &&
+                        rolled &&
+                        canMove(
+                            pi,
+                            mi,
+                            currentRoll
+                        )
+                    ){
+
+                        el.classList.add(
+                            "selectable"
+                        );
+
+                        el.onclick=()=>{
+
+                            movePiece(pi,mi);
+                        };
+                    }
+
+                    cell(
+                        pos[0],
+                        pos[1]
+                    ).appendChild(el);
+                }
+            );
+        }
     );
-    return;
-  }
-  /*
-    If six comes,
-    player chooses the piece.
-  */
-  if (currentRoll === 6) {
-    gameMessage.textContent =
-      "🎉 شش آوردی! مهره‌ات را انتخاب کن.";
-  } else {
-    gameMessage.textContent =
-      "مهره قابل حرکت را انتخاب کن.";
-  }
+
+    renderPlayers();
+
+    const current =
+        players[currentPlayer];
+
+    document.getElementById(
+        "turnText"
+    ).textContent =
+        "نوبت "+colorNames[current.color];
+
+    renderRankings();
 }
-/* =====================================================
-   MOVE PIECE
-===================================================== */
-function movePiece(
-  playerIndex,
-  pieceIndex
-) {
-  if (moving) return;
-  if (
-    playerIndex !==
-    currentPlayer
-  ) {
-    return;
-  }
-  if (!rolled) return;
-  if (
-    !canMove(
-      playerIndex,
-      pieceIndex,
-      currentRoll
-    )
-  ) {
-    return;
-  }
-  moving = true;
-  const dice =
-    currentRoll;
-  let value =
-    players[playerIndex]
-      .pieces[pieceIndex];
-  /*
-    Leaving home.
-  */
-  if (value === -1) {
-    value = 0;
-  } else {
-    value += dice;
-  }
-  /*
-    Animate step by step.
-  */
-  animatePieceMove(
-    playerIndex,
-    pieceIndex,
-    value
-  );
-}
-/* =====================================================
-   ANIMATION
-===================================================== */
-function animatePieceMove(
-  playerIndex,
-  pieceIndex,
-  target
-) {
-  let current =
-    players[playerIndex]
-      .pieces[pieceIndex];
-  if (current === -1) {
-    current = 0;
-    players[playerIndex]
-      .pieces[pieceIndex] =
-      current;
-    renderBoard();
-  }
-  if (current >= target) {
-    finishMove(
-      playerIndex,
-      pieceIndex
-    );
-    return;
-  }
-  current++;
-  players[playerIndex]
-    .pieces[pieceIndex] =
-    current;
-  renderBoard();
-  setTimeout(
-    () => {
-      animatePieceMove(
-        playerIndex,
-        pieceIndex,
-        target
-      );
-    },
-    100
-  );
-}
-/* =====================================================
-   FINISH MOVE
-===================================================== */
-function finishMove(
-  playerIndex,
-  pieceIndex
-) {
-  rolled = false;
-  moving = false;
-  capturePiece(
-    playerIndex,
-    pieceIndex
-  );
-  const value =
-    players[playerIndex]
-      .pieces[pieceIndex];
-  if (value === 32) {
-    celebration(
-      playerIndex
-    );
-  }
-  renderBoard();
-  const won =
-    players[playerIndex]
-      .pieces
-      .every(
-        p => p === 32
-      );
-  if (won) {
-    showWinner(
-      playerIndex
-    );
-    return;
-  }
-  /*
-    Six = another roll.
-  */
-  if (currentRoll === 6) {
-    gameMessage.textContent =
-      playerIndex === 0
-        ? "🎉 شش! دوباره تاس بزن."
-        : "کامپیوتر دوباره بازی می‌کند.";
-    rolled = false;
-    if (playerIndex === 0) {
-      playerHint.classList.add(
-        "active"
-      );
-    } else {
-      setTimeout(
-        computerTurn,
-        800
-      );
-    }
-    return;
-  }
-  nextTurn();
-}
-/* =====================================================
-   CAPTURE
-===================================================== */
-function capturePiece(
-  playerIndex,
-  pieceIndex
-) {
-  const value =
-    players[playerIndex]
-      .pieces[pieceIndex];
-  if (
-    value < 0 ||
-    value >= 28
-  ) {
-    return;
-  }
-  players.forEach(
-    (enemy, enemyIndex) => {
-      if (
-        enemyIndex ===
-        playerIndex
-      ) {
-        return;
-      }
-      enemy.pieces =
-        enemy.pieces.map(
-          enemyValue => {
-            if (
-              enemyValue >= 0 &&
-              enemyValue < 28
-            ) {
-              if (
-                enemyValue ===
-                value
-              ) {
-                return -1;
-              }
+
+/* =========================
+   PLAYER CARDS
+========================= */
+
+function renderPlayers(){
+
+    const panel =
+        document.getElementById(
+            "playersPanel"
+        );
+
+    panel.innerHTML="";
+
+    players.forEach(
+        (player,index)=>{
+
+            const card =
+                document.createElement("div");
+
+            card.className="playerCard";
+
+            if(index===currentPlayer)
+                card.classList.add("active");
+
+            const info =
+                document.createElement("div");
+
+            info.className="playerInfo";
+
+            const name =
+                document.createElement("div");
+
+            name.className="playerColor";
+
+            name.textContent =
+                (index===0
+                    ? "🔴 "
+                    : index===1
+                    ? "🟡 "
+                    : index===2
+                    ? "🟢 "
+                    : "🔵 "
+                )
+                +colorNames[player.color];
+
+            const status =
+                document.createElement("div");
+
+            status.className="playerStatus";
+
+            status.textContent =
+                player.finished+
+                "/4 به پایان رسیده";
+
+            info.appendChild(name);
+            info.appendChild(status);
+
+            const dice =
+                document.createElement("button");
+
+            dice.className="diceBtn";
+
+            dice.innerHTML =
+                diceFaces[
+                    index===currentPlayer && rolled
+                    ? currentRoll-1
+                    : 0
+                ]
+                +
+                "<small>تاس</small>";
+
+            if(index===currentPlayer){
+
+                dice.classList.add(
+                    "yourTurn"
+                );
+
+                dice.onclick=rollDice;
+            }else{
+
+                dice.disabled=true;
+                dice.style.opacity=".45";
             }
-            return enemyValue;
-          }
-        );
-    }
-  );
+
+            card.appendChild(info);
+            card.appendChild(dice);
+
+            panel.appendChild(card);
+        }
+    );
 }
-/* =====================================================
-   TURN
-===================================================== */
-function nextTurn() {
-  currentPlayer =
-    currentPlayer === 0
-      ? 1
-      : 0;
-  rolled = false;
-  currentRoll = 0;
-  updateTurnUI();
-  renderBoard();
-  if (
-    currentPlayer === 1
-  ) {
-    setTimeout(
-      computerTurn,
-      900
-    );
-  }
-}
-/* =====================================================
-   TURN UI
-===================================================== */
-function updateTurnUI() {
-  if (currentPlayer === 0) {
-    turnText.textContent =
-      "🔵 نوبت تو";
-    playerHint.textContent =
-      "نوبت تو — تاس را بزن";
-    playerHint.classList.add(
-      "active"
-    );
-    botHint.textContent =
-      "منتظر نوبت";
-    botHint.classList.remove(
-      "active"
-    );
-  } else {
-    turnText.textContent =
-      "🔴 نوبت کامپیوتر";
-    playerHint.textContent =
-      "منتظر نوبت کامپیوتر";
-    playerHint.classList.remove(
-      "active"
-    );
-    botHint.textContent =
-      "🤖 نوبت کامپیوتر";
-    botHint.classList.add(
-      "active"
-    );
-  }
-}
-/* =====================================================
-   COMPUTER
-===================================================== */
-function computerTurn() {
-  if (
-    currentPlayer !== 1 ||
-    moving
-  ) {
-    return;
-  }
-  currentRoll =
-    Math.floor(
-      Math.random() * 6
-    ) + 1;
-  setDice(
-    botDice,
-    currentRoll
-  );
-  rolled = true;
-  gameMessage.textContent =
-    `🤖 کامپیوتر ${currentRoll} آورد`;
-  renderBoard();
-  const possible =
-    players[1]
-      .pieces
-      .map(
-        (_, index) =>
-          index
-      )
-      .filter(
-        index =>
-          canMove(
-            1,
-            index,
-            currentRoll
-          )
-      );
-  if (
-    possible.length === 0
-  ) {
-    rolled = false;
-    setTimeout(
-      nextTurn,
-      700
-    );
-    return;
-  }
-  /*
-    AI priorities:
-    1. Finish piece
-    2. Capture
-    3. Leave home
-    4. Move any piece
-  */
-  let chosen =
-    possible[0];
-  for (
-    const index of possible
-  ) {
+
+/* =========================
+   CAN MOVE
+========================= */
+
+function canMove(pi,mi,number){
+
     const value =
-      players[1]
-        .pieces[index];
-    const nextValue =
-      value === -1
-        ? 0
-        : value + currentRoll;
-    if (
-      nextValue === 32
-    ) {
-      chosen = index;
-      break;
+        players[pi].pieces[mi];
+
+    if(value===57)
+        return false;
+
+    if(value===-1)
+        return number===6;
+
+    return value+number<=57;
+}
+
+/* =========================
+   DICE
+========================= */
+
+function rollDice(){
+
+    if(!gameStarted)
+        return;
+
+    if(currentPlayer!==0 && gameMode==="computer")
+        return;
+
+    if(rolled)
+        return;
+
+    currentRoll =
+        Math.floor(Math.random()*6)+1;
+
+    rolled=true;
+
+    render();
+
+    message(
+        "تاس آمد: "+
+        currentRoll+
+        " 🎲"
+    );
+
+    const possible =
+        players[currentPlayer]
+        .pieces
+        .some(
+            (_,i)=>
+                canMove(
+                    currentPlayer,
+                    i,
+                    currentRoll
+                )
+        );
+
+    if(!possible){
+
+        message(
+            "با این عدد حرکتی نداری."
+        );
+
+        setTimeout(()=>{
+
+            if(currentRoll!==6)
+                nextTurn();
+            else{
+                rolled=false;
+                render();
+            }
+
+        },900);
+
+        return;
     }
-  }
-  setTimeout(
-    () => {
-      movePiece(
-        1,
+
+    /*
+      کامپیوتر
+    */
+
+    if(
+        gameMode==="computer" &&
+        currentPlayer!==0
+    ){
+
+        setTimeout(
+            computerMove,
+            700
+        );
+    }
+}
+
+/* =========================
+   MOVE PIECE
+========================= */
+
+async function movePiece(pi,mi){
+
+    if(pi!==currentPlayer)
+        return;
+
+    if(!rolled)
+        return;
+
+    if(!canMove(pi,mi,currentRoll))
+        return;
+
+    const number=currentRoll;
+
+    rolled=false;
+
+    let value =
+        players[pi].pieces[mi];
+
+    /*
+      خروج با ۶
+    */
+
+    if(value===-1){
+
+        players[pi].pieces[mi]=0;
+
+        message(
+            "مهره از خانه خارج شد! 🎉"
+        );
+
+        render();
+
+    }else{
+
+        /*
+          حرکت خانه به خانه
+        */
+
+        for(let i=0;i<number;i++){
+
+            players[pi].pieces[mi]++;
+
+            render();
+
+            await wait(150);
+        }
+
+        message(
+            "مهره حرکت کرد."
+        );
+    }
+
+    /*
+      پایان مهره
+    */
+
+    if(
+        players[pi].pieces[mi]===57
+    ){
+
+        players[pi].finished++;
+
+        message(
+            "🎉 مهره به جام رسید!"
+        );
+
+        await wait(500);
+    }
+
+    capture(pi,mi);
+
+    render();
+
+    /*
+      برنده
+    */
+
+    if(
+        players[pi].finished===4
+    ){
+
+        if(!rankings.includes(pi))
+            rankings.push(pi);
+
+        message(
+            "👑 "+
+            colorNames[players[pi].color]+
+            " کینگ شد!"
+        );
+
+        await wait(800);
+
+        if(rankings.length===players.length){
+
+            message(
+                "🏆 بازی تمام شد!"
+            );
+
+            return;
+        }
+    }
+
+    /*
+      شش = دوباره
+    */
+
+    if(number===6){
+
+        message(
+            "🎲 شش آمد! دوباره تاس بزن."
+        );
+
+        render();
+
+        return;
+    }
+
+    nextTurn();
+}
+
+/* =========================
+   CAPTURE
+========================= */
+
+function capture(pi,mi){
+
+    const value =
+        players[pi].pieces[mi];
+
+    if(value<0 || value>51)
+        return;
+
+    const position =
+        (starts[pi]+value)%52;
+
+    if(safeSquares.has(position))
+        return;
+
+    players.forEach(
+        (opponent,oi)=>{
+
+            if(oi===pi)
+                return;
+
+            opponent.pieces =
+                opponent.pieces.map(
+                    enemy=>{
+
+                        if(
+                            enemy>=0 &&
+                            enemy<=51
+                        ){
+
+                            const enemyPos =
+                                (starts[oi]+enemy)%52;
+
+                            if(
+                                enemyPos===position
+                            ){
+
+                                return -1;
+                            }
+                        }
+
+                        return enemy;
+                    }
+                );
+        }
+    );
+}
+
+/* =========================
+   NEXT TURN
+========================= */
+
+function nextTurn(){
+
+    currentPlayer =
+        (currentPlayer+1)
+        %players.length;
+
+    rolled=false;
+    currentRoll=0;
+
+    render();
+
+    if(
+        gameMode==="computer" &&
+        currentPlayer!==0
+    ){
+
+        message(
+            "🤖 نوبت کامپیوتر..."
+        );
+
+        setTimeout(
+            rollDice,
+            900
+        );
+    }else{
+
+        message(
+            "👉 نوبت تو — تاس را بزن"
+        );
+    }
+}
+
+/* =========================
+   COMPUTER
+========================= */
+
+function computerMove(){
+
+    const possible =
+        players[currentPlayer]
+        .pieces
+        .map((_,i)=>i)
+        .filter(
+            i=>
+                canMove(
+                    currentPlayer,
+                    i,
+                    currentRoll
+                )
+        );
+
+    if(!possible.length){
+
+        nextTurn();
+        return;
+    }
+
+    let chosen=possible[0];
+
+    /*
+      اول مهره‌ای که
+      می‌تواند تمام شود
+    */
+
+    for(const i of possible){
+
+        const value =
+            players[currentPlayer]
+            .pieces[i];
+
+        const newValue =
+            value===-1
+            ?0
+            :value+currentRoll;
+
+        if(newValue===57){
+
+            chosen=i;
+            break;
+        }
+    }
+
+    /*
+      اگر شش باشد ترجیحاً
+      مهره داخل خانه
+    */
+
+    if(currentRoll===6){
+
+        const home =
+            possible.find(
+                i=>
+                    players[currentPlayer]
+                    .pieces[i]===-1
+            );
+
+        if(home!==undefined)
+            chosen=home;
+    }
+
+    movePiece(
+        currentPlayer,
         chosen
-      );
-    },
-    700
-  );
-}
-/* =====================================================
-   CELEBRATION
-===================================================== */
-function celebration(
-  playerIndex
-) {
-  const text =
-    playerIndex === 0
-      ? "🎉 مهره تو به مقصد رسید!"
-      : "🎉 مهره کامپیوتر به مقصد رسید!";
-  gameMessage.textContent =
-    text;
-  const cup =
-    board.querySelector(".cup");
-  if (cup) {
-    cup.style.transform =
-      "scale(1.3)";
-    setTimeout(
-      () => {
-        cup.style.transform =
-          "";
-      },
-      500
     );
-  }
 }
-/* =====================================================
-   WINNER
-===================================================== */
-function showWinner(
-  playerIndex
-) {
-  const winner =
-    playerIndex === 0
-      ? "🔵 تو برنده شدی! 👑"
-      : "🔴 کامپیوتر برنده شد! 🤖";
-  turnText.textContent =
-    winner;
-  gameMessage.textContent =
-    "🏆 بازی تمام شد.";
-  playerHint.classList.remove(
-    "active"
-  );
-  botHint.classList.remove(
-    "active"
-  );
-  renderBoard();
-}
-/* =====================================================
-   MENU BUTTONS
-===================================================== */
-document
-  .getElementById("computerBtn")
-  .onclick = () => {
-    startComputerGame();
-  };
-document
-  .getElementById("quickGameBtn")
-  .onclick = () => {
-    show(playerCountScreen);
-  };
-document
-  .getElementById("createRoomBtn")
-  .onclick = () => {
-    show(playerCountScreen);
-  };
-document
-  .getElementById("joinRoomBtn")
-  .onclick = () => {
-    show(joinScreen);
-  };
-/* =====================================================
-   BACK BUTTONS
-===================================================== */
-document
-  .getElementById("countBackBtn")
-  .onclick = () => {
-    show(menu);
-  };
-document
-  .getElementById("roomBackBtn")
-  .onclick = () => {
-    show(menu);
-  };
-document
-  .getElementById("joinBackBtn")
-  .onclick = () => {
-    show(menu);
-  };
-document
-  .getElementById("gameBackBtn")
-  .onclick = () => {
-    show(menu);
-  };
-/* =====================================================
-   ROOM PLACEHOLDER
-===================================================== */
-document
-  .getElementById("startRoomBtn")
-  .onclick = () => {
-    alert(
-      "اتصال آنلاین در مرحله بعد فعال می‌شود."
+
+/* =========================
+   COMPUTER GAME
+========================= */
+
+function startComputerGame(){
+
+    gameMode="computer";
+
+    resetGame(2);
+
+    buildBoard();
+
+    render();
+
+    showScreen(gameScreen);
+
+    message(
+        "🎮 تو قرمز هستی — تاس را بزن"
     );
-  };
-document
-  .getElementById("joinBtn")
-  .onclick = () => {
-    const code =
-      document
-        .getElementById("roomInput")
-        .value
-        .trim();
-    if (
-      !/^\d{6}$/.test(code)
-    ) {
-      alert(
-        "کد اتاق باید ۶ رقمی باشد."
-      );
-      return;
+}
+
+/* =========================
+   RANKINGS
+========================= */
+
+function renderRankings(){
+
+    const box =
+        document.getElementById(
+            "rankText"
+        );
+
+    if(!rankings.length){
+
+        box.textContent="";
+        return;
     }
-    alert(
-      "سیستم آنلاین اتاق در مرحله بعد فعال می‌شود."
+
+    box.innerHTML =
+        rankings.map(
+            (pi,index)=>
+                "👑 "+
+                (index+1)+
+                " "+
+                colorNames[
+                    players[pi].color
+                ]
+        ).join("<br>");
+}
+
+/* =========================
+   MESSAGE
+========================= */
+
+function message(text){
+
+    document.getElementById(
+        "gameMessage"
+    ).textContent=text;
+}
+
+/* =========================
+   WAIT
+========================= */
+
+function wait(ms){
+
+    return new Promise(
+        resolve=>
+            setTimeout(resolve,ms)
     );
-  };
-/* =====================================================
-   COPY
-===================================================== */
-document
-  .getElementById("copyCodeBtn")
-  .onclick = async () => {
-    const code =
-      document
-        .getElementById("roomCode")
-        .textContent;
-    try {
-      await navigator.clipboard.writeText(
-        code
-      );
-      alert(
-        "کد کپی شد!"
-      );
-    } catch {
-      alert(
-        "کد: " + code
-      );
-    }
-  };
-/* =====================================================
+}
+
+/* =========================
+   BUTTONS
+========================= */
+
+document.getElementById(
+    "computerBtn"
+).onclick=startComputerGame;
+
+document.getElementById(
+    "createRoomBtn"
+).onclick=createRoom;
+
+document.getElementById(
+    "joinRoomBtn"
+).onclick=()=>{
+
+    showScreen(joinScreen);
+};
+
+document.getElementById(
+    "backBtn"
+).onclick=()=>{
+
+    showScreen(menu);
+};
+
+document.getElementById(
+    "backJoinBtn"
+).onclick=()=>{
+
+    showScreen(menu);
+};
+
+document.getElementById(
+    "startBtn"
+).onclick=()=>{
+
+    gameMode="local";
+
+    resetGame(
+        selectedPlayerCount
+    );
+
+    buildBoard();
+    render();
+
+    showScreen(gameScreen);
+
+    message(
+        "بازی شروع شد!"
+    );
+};
+
+/* =========================
    SETTINGS
-===================================================== */
-document
-  .getElementById("settingsBtn")
-  .onclick = () => {
-    settings.classList.remove(
-      "hidden"
-    );
-  };
-document
-  .getElementById("closeSettings")
-  .onclick = () => {
-    settings.classList.add(
-      "hidden"
-    );
-  };
-/* =====================================================
-   LANGUAGE
-===================================================== */
-document
-  .querySelectorAll(
+========================= */
+
+document.getElementById(
+    "settingsBtn"
+).onclick=()=>{
+
+    document.getElementById(
+        "settings"
+    ).classList.remove("hidden");
+};
+
+document.getElementById(
+    "closeSettings"
+).onclick=()=>{
+
+    document.getElementById(
+        "settings"
+    ).classList.add("hidden");
+};
+
+/* =========================
+   LANGUAGE PLACEHOLDER
+========================= */
+
+document.querySelectorAll(
     "[data-lang]"
-  )
-  .forEach(
-    button => {
-      button.onclick = () => {
-        const lang =
-          button.dataset.lang;
+).forEach(btn=>{
+
+    btn.onclick=()=>{
+
         localStorage.setItem(
-          "cactuc_language",
-          lang
+            "cactuc_language",
+            btn.dataset.lang
         );
-        settings.classList.add(
-          "hidden"
+
+        document.getElementById(
+            "settings"
+        ).classList.add("hidden");
+
+        message(
+            "زبان انتخاب شد."
         );
-        alert(
-          "زبان انتخاب شد: " +
-          lang
-        );
-      };
-    }
-  );
-/* =====================================================
-   INITIAL
-===================================================== */
-setDice(
-  playerDice,
-  5
-);
-setDice(
-  botDice,
-  5
-);
+    };
+});
+
+/* =========================
+   START
+========================= */
+
+showScreen(menu);
