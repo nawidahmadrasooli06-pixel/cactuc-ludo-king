@@ -1,468 +1,151 @@
 const express = require("express");
 const http = require("http");
-const { WebSocketServer } = require("ws");
-
+const { Server } = require("socket.io");
+const TelegramBot = require("node-telegram-bot-api");
 const app = express();
 const server = http.createServer(app);
-
-app.use(express.json());
-
+const io = new Server(server, {
+  cors: { origin: "*" }
+});
 const PORT = process.env.PORT || 10000;
-
-/* =========================
-   LUDO SERVER
-========================= */
-
+const BOT_TOKEN = process.env.BOT_TOKEN;
 const rooms = new Map();
-
-function createRoomCode() {
-    let code;
-
-    do {
-        code = Math.floor(
-            100000 + Math.random() * 900000
-        ).toString();
-    } while (rooms.has(code));
-
-    return code;
-}
-
-function createRoom() {
-    const code = createRoomCode();
-
-    const room = {
-        code,
-        players: [],
-        started: false,
-        currentPlayer: 0,
-        createdAt: Date.now()
-    };
-
-    rooms.set(code, room);
-
-    return room;
-}
-
-/* =========================
-   HEALTH CHECK
-========================= */
-
 app.get("/", (req, res) => {
-    res.json({
-        ok: true,
-        name: "CACTUC LUDO KING",
-        server: "online",
-        rooms: rooms.size
-    });
+  res.json({
+    ok: true,
+    name: "CACTUC LUDO KING",
+    server: "online",
+    rooms: rooms.size
+  });
 });
-
-/* =========================
-   CREATE ROOM
-========================= */
-
-app.post("/api/room/create", (req, res) => {
-    const room = createRoom();
-
-    res.json({
-        ok: true,
-        roomCode: room.code
+function makeCode() {
+  let code;
+  do {
+    code = String(Math.floor(100000 + Math.random() * 900000));
+  } while (rooms.has(code));
+  return code;
+}
+function createRoom(host, maxPlayers) {
+  const code = makeCode();
+  const room = {
+    code,
+    maxPlayers,
+    players: [],
+    started: false,
+    turn: 0
+  };
+  room.players.push(host);
+  rooms.set(code, room);
+  return room;
+}
+io.on("connection", socket => {
+  socket.on("createRoom", ({ name, maxPlayers }) => {
+    maxPlayers = Math.min(4, Math.max(2, Number(maxPlayers) || 2));
+    const room = createRoom({
+      id: socket.id,
+      name: name || "Player",
+      color: "red"
+    }, maxPlayers);
+    socket.join(room.code);
+    socket.emit("roomCreated", {
+      code: room.code,
+      players: room.players,
+      maxPlayers: room.maxPlayers
     });
-});
-
-/* =========================
-   ROOM INFO
-========================= */
-
-app.get("/api/room/:code", (req, res) => {
-    const code = req.params.code;
-    const room = rooms.get(code);
-
+  });
+  socket.on("joinRoom", ({ code, name }) => {
+    const room = rooms.get(String(code));
     if (!room) {
-        return res.status(404).json({
-            ok: false,
-            error: "ROOM_NOT_FOUND"
-        });
+      socket.emit("roomError", "اتاق پیدا نشد.");
+      return;
     }
-
-    res.json({
-        ok: true,
-        room: {
-            code: room.code,
-            players: room.players.map(player => ({
-                id: player.id,
-                name: player.name,
-                color: player.color
-            })),
-            started: room.started,
-            currentPlayer: room.currentPlayer
-        }
-    });
-});
-
-/* =========================
-   JOIN ROOM
-========================= */
-
-app.post("/api/room/join", (req, res) => {
-    const {
-        roomCode,
-        playerId,
-        playerName
-    } = req.body;
-
-    if (!roomCode || !playerId) {
-        return res.status(400).json({
-            ok: false,
-            error: "MISSING_DATA"
-        });
-    }
-
-    const room = rooms.get(String(roomCode));
-
-    if (!room) {
-        return res.status(404).json({
-            ok: false,
-            error: "ROOM_NOT_FOUND"
-        });
-    }
-
     if (room.started) {
-        return res.status(400).json({
-            ok: false,
-            error: "GAME_ALREADY_STARTED"
-        });
+      socket.emit("roomError", "بازی شروع شده است.");
+      return;
     }
-
-    if (room.players.length >= 4) {
-        return res.status(400).json({
-            ok: false,
-            error: "ROOM_FULL"
-        });
+    if (room.players.length >= room.maxPlayers) {
+      socket.emit("roomError", "ظرفیت اتاق پر است.");
+      return;
     }
-
-    const alreadyJoined =
-        room.players.find(
-            player => player.id === playerId
-        );
-
-    if (alreadyJoined) {
-        return res.json({
-            ok: true,
-            player: alreadyJoined,
-            room
-        });
-    }
-
-    const colors = [
-        "red",
-        "yellow",
-        "green",
-        "blue"
-    ];
-
-    const player = {
-        id: String(playerId),
-        name:
-            playerName ||
-            `Player ${room.players.length + 1}`,
-        color: colors[room.players.length]
-    };
-
-    room.players.push(player);
-
-    broadcastRoom(room);
-
-    res.json({
-        ok: true,
-        player,
-        room: {
-            code: room.code,
-            players: room.players
-        }
+    const colors = ["red", "yellow", "green", "blue"];
+    room.players.push({
+      id: socket.id,
+      name: name || "Player",
+      color: colors[room.players.length]
     });
-});
-
-/* =========================
-   START GAME
-========================= */
-
-app.post("/api/room/start", (req, res) => {
-    const {
-        roomCode,
-        playerId
-    } = req.body;
-
-    const room = rooms.get(String(roomCode));
-
-    if (!room) {
-        return res.status(404).json({
-            ok: false,
-            error: "ROOM_NOT_FOUND"
-        });
-    }
-
-    if (!room.players.some(p => p.id === String(playerId))) {
-        return res.status(403).json({
-            ok: false,
-            error: "PLAYER_NOT_IN_ROOM"
-        });
-    }
-
+    socket.join(room.code);
+    io.to(room.code).emit("roomUpdate", {
+      players: room.players,
+      maxPlayers: room.maxPlayers
+    });
+  });
+  socket.on("startRoom", code => {
+    const room = rooms.get(String(code));
+    if (!room) return;
     if (room.players.length < 2) {
-        return res.status(400).json({
-            ok: false,
-            error: "NEED_AT_LEAST_2_PLAYERS"
-        });
+      socket.emit("roomError", "حداقل دو بازیکن لازم است.");
+      return;
     }
-
     room.started = true;
-    room.currentPlayer = 0;
-
-    broadcast(room, {
-        type: "GAME_STARTED",
-        room: serializeRoom(room)
+    room.turn = 0;
+    io.to(room.code).emit("gameStarted", {
+      players: room.players,
+      turn: room.turn
     });
-
-    res.json({
-        ok: true,
-        room: serializeRoom(room)
-    });
-});
-
-/* =========================
-   WEBSOCKET
-========================= */
-
-const wss = new WebSocketServer({
-    server
-});
-
-function broadcast(room, data) {
-    const message = JSON.stringify(data);
-
-    room.players.forEach(player => {
-        if (
-            player.socket &&
-            player.socket.readyState === 1
-        ) {
-            player.socket.send(message);
-        }
-    });
-}
-
-function broadcastRoom(room) {
-    broadcast(room, {
-        type: "ROOM_UPDATED",
-        room: serializeRoom(room)
-    });
-}
-
-function serializeRoom(room) {
-    return {
-        code: room.code,
-        started: room.started,
-        currentPlayer: room.currentPlayer,
-        players: room.players.map(player => ({
-            id: player.id,
-            name: player.name,
-            color: player.color
-        }))
-    };
-}
-
-wss.on("connection", socket => {
-
-    let connectedPlayer = null;
-    let connectedRoom = null;
-
-    socket.on("message", raw => {
-
-        let data;
-
-        try {
-            data = JSON.parse(raw.toString());
-        } catch {
-            socket.send(
-                JSON.stringify({
-                    type: "ERROR",
-                    error: "INVALID_JSON"
-                })
-            );
-
-            return;
-        }
-
-        /* JOIN WEBSOCKET */
-
-        if (data.type === "JOIN_ROOM") {
-
-            const room = rooms.get(
-                String(data.roomCode)
-            );
-
-            if (!room) {
-                socket.send(
-                    JSON.stringify({
-                        type: "ERROR",
-                        error: "ROOM_NOT_FOUND"
-                    })
-                );
-
-                return;
-            }
-
-            const player = room.players.find(
-                p => p.id === String(data.playerId)
-            );
-
-            if (!player) {
-                socket.send(
-                    JSON.stringify({
-                        type: "ERROR",
-                        error: "PLAYER_NOT_FOUND"
-                    })
-                );
-
-                return;
-            }
-
-            player.socket = socket;
-
-            connectedPlayer = player;
-            connectedRoom = room;
-
-            socket.send(
-                JSON.stringify({
-                    type: "CONNECTED",
-                    room: serializeRoom(room),
-                    player: {
-                        id: player.id,
-                        name: player.name,
-                        color: player.color
-                    }
-                })
-            );
-
-            broadcastRoom(room);
-
-            return;
-        }
-
-        /* DICE */
-
-        if (data.type === "ROLL_DICE") {
-
-            if (!connectedRoom || !connectedPlayer) {
-                return;
-            }
-
-            const playerIndex =
-                connectedRoom.players.findIndex(
-                    p => p.id === connectedPlayer.id
-                );
-
-            if (
-                playerIndex !==
-                connectedRoom.currentPlayer
-            ) {
-                socket.send(
-                    JSON.stringify({
-                        type: "ERROR",
-                        error: "NOT_YOUR_TURN"
-                    })
-                );
-
-                return;
-            }
-
-            const dice =
-                Math.floor(
-                    Math.random() * 6
-                ) + 1;
-
-            broadcast(connectedRoom, {
-                type: "DICE_ROLLED",
-                playerId: connectedPlayer.id,
-                dice
-            });
-
-            return;
-        }
-
-        /* TURN */
-
-        if (data.type === "NEXT_TURN") {
-
-            if (!connectedRoom) {
-                return;
-            }
-
-            connectedRoom.currentPlayer =
-                (
-                    connectedRoom.currentPlayer + 1
-                ) %
-                connectedRoom.players.length;
-
-            broadcast(connectedRoom, {
-                type: "TURN_CHANGED",
-                currentPlayer:
-                    connectedRoom.currentPlayer
-            });
-
-            return;
-        }
-
-    });
-
-    socket.on("close", () => {
-
-        if (
-            connectedRoom &&
-            connectedPlayer
-        ) {
-            connectedPlayer.socket = null;
-
-            broadcastRoom(
-                connectedRoom
-            );
-        }
-
-    });
-
-});
-
-/* =========================
-   CLEAN EMPTY ROOMS
-========================= */
-
-setInterval(() => {
-
-    const now = Date.now();
-
-    for (
-        const [code, room]
-        of rooms.entries()
-    ) {
-
-        if (
-            room.players.length === 0 &&
-            now - room.createdAt >
-            30 * 60 * 1000
-        ) {
-            rooms.delete(code);
-        }
+  });
+  socket.on("disconnect", () => {
+    for (const [code, room] of rooms) {
+      const oldLength = room.players.length;
+      room.players = room.players.filter(
+        p => p.id !== socket.id
+      );
+      if (room.players.length !== oldLength) {
+        io.to(code).emit("roomUpdate", {
+          players: room.players,
+          maxPlayers: room.maxPlayers
+        });
+      }
+      if (room.players.length === 0) {
+        rooms.delete(code);
+      }
     }
-
-}, 5 * 60 * 1000);
-
-/* =========================
-   START SERVER
-========================= */
-
-server.listen(PORT, () => {
-
-    console.log(
-        `CACTUC LUDO KING server running on port ${PORT}`
+  });
+});
+if (BOT_TOKEN) {
+  const bot = new TelegramBot(BOT_TOKEN, { polling: true });
+  bot.onText(/\/start/, async msg => {
+    const chatId = msg.chat.id;
+    await bot.sendMessage(
+      chatId,
+      `🌵👑 خوش آمدی به CACTUC LUDO KING 👑🌵
+آماده‌ای برای یک بازی لودو هیجان‌انگیز؟
+از منوی پایین روی «🎮 بازی کردن لدو» بزن و وارد بازی شو.`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "🎮 بازی کردن لدو",
+                web_app: {
+                  url: "https://nawidahmadrasooli06-pixel.github.io/cactuc-ludo-king/"
+                }
+              }
+            ],
+            [
+              {
+                text: "📢 کانال من",
+                url: "https://t.me/YOUR_CHANNEL"
+              }
+            ]
+          ]
+        }
+      }
     );
-
+  });
+  console.log("Telegram bot is running.");
+} else {
+  console.log("BOT_TOKEN is not set.");
+}
+server.listen(PORT, () => {
+  console.log(`CACTUC LUDO KING server running on ${PORT}`);
 });
