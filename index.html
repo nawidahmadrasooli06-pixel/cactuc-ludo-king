@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CACTUC LUDO KING 👑</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+    <header class="topbar">
+        <div>
+            <h1>CACTUC LUDO KING 👑</h1>
+            <p id="subtitle">بازی لودو</p>
+        </div>
+        <button id="settingsBtn">⚙️</button>
+    </header>
+    <section id="menu" class="screen">
+        <button id="createRoomBtn" class="mainBtn">
+            🏠 ساخت اتاق جدید
+        </button>
+        <button id="joinRoomBtn" class="mainBtn">
+            🔑 ورود به اتاق
+        </button>
+        <button id="computerBtn" class="mainBtn">
+            🤖 بازی با کامپیوتر
+        </button>
+    </section>
+    <section id="roomScreen" class="screen hidden">
+        <h2>🏠 اتاق بازی</h2>
+        <div class="roomCode">
+            <small>کد اتاق</small>
+            <strong id="roomCode">------</strong>
+        </div>
+        <button id="copyCodeBtn">
+            📋 کپی کد
+        </button>
+        <div id="roomPlayers"></div>
+        <button id="startBtn" class="mainBtn">
+            ▶️ شروع بازی
+        </button>
+    </section>
+    <section id="joinScreen" class="screen hidden">
+        <h2>🔑 ورود به اتاق</h2>
+        <input
+            id="roomInput"
+            maxlength="6"
+            inputmode="numeric"
+            placeholder="کد ۶ رقمی"
+        >
+        <button id="joinBtn" class="mainBtn">
+            ورود
+        </button>
+        <button id="backBtn">
+            برگشت
+        </button>
+    </section>
+    <section id="gameScreen" class="hidden">
+        <div class="players">
+            <div class="player red">
+                🔴 RED
+                <span>0/4</span>
+            </div>
+            <div class="player yellow">
+                🟡 YELLOW
+                <span>0/4</span>
+            </div>
+            <div class="player green">
+                🟢 GREEN
+                <span>0/4</span>
+            </div>
+            <div class="player blue">
+                🔵 BLUE
+                <span>0/4</span>
+            </div>
+        </div>
+        <div id="board" class="board"></div>
+        <div class="controls">
+            <div>
+                <strong id="turnText">
+                    نوبت قرمز
+                </strong>
+                <small id="gameMessage">
+                    تاس را بزن
+                </small>
+            </div>
+            <button id="diceBtn" class="dice">
+                ⚄
+                <small>تاس</small>
+            </button>
+        </div>
+    </section>
+    <section id="settings" class="modal hidden">
+        <div class="settingsBox">
+            <h2>⚙️ تنظیمات</h2>
+            <h3>🌐 زبان</h3>
+            <button data-lang="fa">🇮🇷 فارسی</button>
+            <button data-lang="en">🇬🇧 English</button>
+            <button data-lang="ar">🇸🇦 العربية</button>
+            <button data-lang="de">🇩🇪 Deutsch</button>
+            <button data-lang="ru">🇷🇺 Русский</button>
+            <button id="closeSettings">
+                بستن
+            </button>
+        </div>
+    </section>
+</div>
+<script src="game.js"></script>
+</body>
+</html>
+
