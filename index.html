@@ -1,331 +1,197 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-    <title>CACTUC LUDO KING 👑</title>
-
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>CACTUC LUDO KING 👑</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-
 <div id="app">
-
-    <!-- HEADER -->
-    <header class="topbar">
-
-        <div class="brand">
-            <h1>CACTUC</h1>
-            <p id="subtitle">CACTUC LUDO KING 👑</p>
+  <header class="topbar">
+    <div class="brand">
+      <h1>CACTUC</h1>
+      <div class="brand-sub">LUDO KING 👑</div>
+    </div>
+    <button id="settingsBtn" class="iconBtn">⚙️</button>
+  </header>
+  <!-- MAIN MENU -->
+  <main id="menu" class="screen">
+    <div class="welcome">
+      <div class="cactus">🌵</div>
+      <h2>خوش آمدی به CACTUC LUDO KING</h2>
+      <p>
+        آماده‌ای برای یک بازی واقعی لودو؟
+      </p>
+    </div>
+    <button id="quickGameBtn" class="mainBtn">
+      ⚡ بازی سریع
+    </button>
+    <button id="computerBtn" class="mainBtn">
+      🤖 بازی با کامپیوتر
+    </button>
+    <button id="createRoomBtn" class="mainBtn">
+      🏠 ساخت اتاق
+    </button>
+    <button id="joinRoomBtn" class="mainBtn">
+      🔑 ورود به اتاق
+    </button>
+    <div class="creator">
+      <div>سازنده: نــوید = Cactuc</div>
+      <a href="https://t.me/cactuc580" target="_blank">
+        @cactuc580
+      </a>
+    </div>
+  </main>
+  <!-- PLAYER COUNT -->
+  <section id="playerCountScreen" class="screen hidden">
+    <h2>👥 تعداد بازیکنان</h2>
+    <button class="countBtn" data-count="2">
+      👤 2 نفره
+    </button>
+    <button class="countBtn" data-count="3">
+      👥 3 نفره
+    </button>
+    <button class="countBtn" data-count="4">
+      👥 4 نفره
+    </button>
+    <button id="countBackBtn" class="secondaryBtn">
+      برگشت
+    </button>
+  </section>
+  <!-- ROOM -->
+  <section id="roomScreen" class="screen hidden">
+    <h2>🏠 اتاق بازی</h2>
+    <div class="roomCard">
+      <small>کد اتاق</small>
+      <strong id="roomCode">
+        ------
+      </strong>
+      <button id="copyCodeBtn">
+        📋 کپی کد
+      </button>
+    </div>
+    <div id="roomPlayers"></div>
+    <button id="startRoomBtn" class="mainBtn">
+      ▶️ شروع بازی
+    </button>
+    <button id="roomBackBtn" class="secondaryBtn">
+      برگشت
+    </button>
+  </section>
+  <!-- JOIN -->
+  <section id="joinScreen" class="screen hidden">
+    <h2>🔑 ورود به اتاق</h2>
+    <input
+      id="roomInput"
+      type="text"
+      maxlength="6"
+      inputmode="numeric"
+      placeholder="کد ۶ رقمی اتاق"
+    >
+    <button id="joinBtn" class="mainBtn">
+      ورود به اتاق
+    </button>
+    <button id="joinBackBtn" class="secondaryBtn">
+      برگشت
+    </button>
+  </section>
+  <!-- GAME -->
+  <section id="gameScreen" class="hidden">
+    <div class="gameHeader">
+      <div>
+        <strong id="gameMode">
+          🤖 بازی با کامپیوتر
+        </strong>
+        <div id="turnText">
+          نوبت تو
         </div>
-
-        <button id="settingsBtn" class="iconBtn">
-            ⚙️
+      </div>
+      <div id="gameMessage">
+        تاس را بزن
+      </div>
+    </div>
+    <!-- OPPONENT -->
+    <div class="playerArea opponentArea">
+      <div class="playerTitle redTitle">
+        🔴 کامپیوتر
+      </div>
+      <div class="home redHome">
+        <div class="homeTitle">
+          RED
+        </div>
+        <div class="homePieces">
+          <button class="homePiece redPiece" data-player="1" data-piece="0"></button>
+          <button class="homePiece redPiece" data-player="1" data-piece="1"></button>
+          <button class="homePiece redPiece" data-player="1" data-piece="2"></button>
+          <button class="homePiece redPiece" data-player="1" data-piece="3"></button>
+        </div>
+      </div>
+      <div class="diceArea">
+        <div class="diceHint" id="botHint">
+          منتظر نوبت
+        </div>
+        <button id="botDice" class="diceBtn" disabled>
+          ⚄
         </button>
-
-    </header>
-
-
-    <!-- MAIN MENU -->
-    <main id="menu" class="screen">
-
-        <div class="logoBox">
-            <div class="crown">👑</div>
-            <h2>CACTUC</h2>
-            <p id="welcomeText">دنیای بازی و سرگرمی</p>
+      </div>
+    </div>
+    <!-- BOARD -->
+    <div id="board" class="board">
+      <div class="base baseRed"></div>
+      <div class="base baseYellow"></div>
+      <div class="base baseGreen"></div>
+      <div class="base baseBlue"></div>
+      <div class="track"></div>
+      <div class="centerCup">
+        <div class="cup">🏆</div>
+      </div>
+    </div>
+    <!-- PLAYER -->
+    <div class="playerArea playerAreaBottom">
+      <div class="diceArea">
+        <div class="diceHint active" id="playerHint">
+          نوبت تو — تاس را بزن
         </div>
-
-        <button id="createRoomBtn" class="mainBtn">
-            🏠 ساخت اتاق جدید
+        <button id="playerDice" class="diceBtn">
+          ⚄
         </button>
-
-        <button id="joinRoomBtn" class="mainBtn">
-            🔑 ورود به اتاق
-        </button>
-
-        <button id="computerBtn" class="mainBtn">
-            🤖 بازی با کامپیوتر
-        </button>
-
-        <button id="quickGameBtn" class="secondaryBtn">
-            ⚡ بازی سریع
-        </button>
-
-    </main>
-
-
-    <!-- PLAYER COUNT -->
-    <section id="playerCountScreen" class="screen hidden">
-
-        <div class="panel">
-
-            <h2 id="playerCountTitle">
-                👥 چند نفر بازی می‌کنند؟
-            </h2>
-
-            <button class="countBtn" data-count="1">
-                🤖 ۱ نفره
-                <small>شما در برابر کامپیوتر</small>
-            </button>
-
-            <button class="countBtn" data-count="2">
-                👥 ۲ نفره
-                <small>دو بازیکن</small>
-            </button>
-
-            <button class="countBtn" data-count="3">
-                👥 ۳ نفره
-                <small>سه بازیکن</small>
-            </button>
-
-            <button class="countBtn" data-count="4">
-                👥 ۴ نفره
-                <small>چهار بازیکن</small>
-            </button>
-
-            <button id="countBackBtn" class="backBtn">
-                ← برگشت
-            </button>
-
+      </div>
+      <div class="playerTitle blueTitle">
+        🔵 تو
+      </div>
+      <div class="home blueHome">
+        <div class="homeTitle">
+          BLUE
         </div>
-
-    </section>
-
-
-    <!-- CREATE ROOM -->
-    <section id="roomScreen" class="screen hidden">
-
-        <div class="panel">
-
-            <h2 id="roomTitle">
-                🏠 اتاق بازی
-            </h2>
-
-            <div class="roomCode">
-
-                <small id="roomCodeLabel">
-                    کد اتاق
-                </small>
-
-                <strong id="roomCode">
-                    ------
-                </strong>
-
-            </div>
-
-            <button id="copyCodeBtn" class="secondaryBtn">
-                📋 کپی کد
-            </button>
-
-            <div id="roomPlayers"></div>
-
-            <button id="startBtn" class="mainBtn">
-                ▶️ شروع بازی
-            </button>
-
-            <button id="roomBackBtn" class="backBtn">
-                ← برگشت
-            </button>
-
+        <div class="homePieces">
+          <button class="homePiece bluePiece" data-player="0" data-piece="0"></button>
+          <button class="homePiece bluePiece" data-player="0" data-piece="1"></button>
+          <button class="homePiece bluePiece" data-player="0" data-piece="2"></button>
+          <button class="homePiece bluePiece" data-player="0" data-piece="3"></button>
         </div>
-
-    </section>
-
-
-    <!-- JOIN ROOM -->
-    <section id="joinScreen" class="screen hidden">
-
-        <div class="panel">
-
-            <h2 id="joinTitle">
-                🔑 ورود به اتاق
-            </h2>
-
-            <input
-                id="roomInput"
-                maxlength="6"
-                inputmode="numeric"
-                autocomplete="off"
-                placeholder="کد ۶ رقمی"
-            >
-
-            <button id="joinBtn" class="mainBtn">
-                ورود
-            </button>
-
-            <button id="backBtn" class="backBtn">
-                ← برگشت
-            </button>
-
-        </div>
-
-    </section>
-
-
-    <!-- GAME -->
-    <section id="gameScreen" class="hidden">
-
-        <!-- CURRENT TURN -->
-        <div class="turnBar">
-
-            <div>
-                <small id="turnLabel">
-                    نوبت
-                </small>
-
-                <strong id="turnText">
-                    قرمز
-                </strong>
-            </div>
-
-            <div id="gameMessage">
-                تاس را بزن
-            </div>
-
-        </div>
-
-
-        <!-- PLAYER CARDS -->
-        <div id="playersBar" class="playersBar"></div>
-
-
-        <!-- LUDO BOARD -->
-        <div class="boardWrap">
-
-            <div id="board" class="board">
-            </div>
-
-        </div>
-
-
-        <!-- DICE AREA -->
-        <div class="gameControls">
-
-            <div class="controlInfo">
-
-                <strong id="activePlayerName">
-                    🔴 قرمز
-                </strong>
-
-                <small id="rollHint">
-                    برای حرکت تاس را بزن
-                </small>
-
-            </div>
-
-            <button id="diceBtn" class="diceBtn">
-
-                <span id="diceFace">
-                    ⚀
-                </span>
-
-                <small id="diceLabel">
-                    تاس
-                </small>
-
-            </button>
-
-        </div>
-
-
-        <button id="leaveGameBtn" class="leaveBtn">
-            ✕ خروج از بازی
-        </button>
-
-    </section>
-
-
-    <!-- WINNER -->
-    <section id="winnerScreen" class="screen hidden">
-
-        <div class="winnerBox">
-
-            <div id="winnerCrown">
-                👑
-            </div>
-
-            <h1 id="winnerTitle">
-                برنده!
-            </h1>
-
-            <div id="winnerName">
-                🔴 قرمز
-            </div>
-
-            <div id="ranking"></div>
-
-            <button id="newGameBtn" class="mainBtn">
-                🎮 بازی جدید
-            </button>
-
-            <button id="winnerMenuBtn" class="secondaryBtn">
-                🏠 منوی اصلی
-            </button>
-
-        </div>
-
-    </section>
-
-
-    <!-- SETTINGS -->
-    <section id="settings" class="modal hidden">
-
-        <div class="settingsBox">
-
-            <h2 id="settingsTitle">
-                ⚙️ تنظیمات
-            </h2>
-
-            <h3 id="languageTitle">
-                🌐 زبان
-            </h3>
-
-            <button data-lang="fa">
-                🇮🇷 فارسی
-            </button>
-
-            <button data-lang="en">
-                🇬🇧 English
-            </button>
-
-            <button data-lang="ar">
-                🇸🇦 العربية
-            </button>
-
-            <button data-lang="de">
-                🇩🇪 Deutsch
-            </button>
-
-            <button data-lang="ru">
-                🇷🇺 Русский
-            </button>
-
-            <button id="closeSettings">
-                بستن
-            </button>
-
-        </div>
-
-    </section>
-
-
-    <!-- FOOTER -->
-    <footer class="footer">
-
-        <span id="creatorText">
-            سازنده: نــوید = Cactuc
-        </span>
-
-    </footer>
-
+      </div>
+    </div>
+    <button id="gameBackBtn" class="secondaryBtn gameBack">
+      خروج از بازی
+    </button>
+  </section>
+  <!-- SETTINGS -->
+  <section id="settings" class="modal hidden">
+    <div class="settingsBox">
+      <h2>⚙️ تنظیمات</h2>
+      <button data-lang="fa">🇮🇷 فارسی</button>
+      <button data-lang="en">🇬🇧 English</button>
+      <button data-lang="de">🇩🇪 Deutsch</button>
+      <button data-lang="ar">🇸🇦 العربية</button>
+      <button data-lang="ru">🇷🇺 Русский</button>
+      <button id="closeSettings">
+        بستن
+      </button>
+    </div>
+  </section>
 </div>
-
-
 <script src="game.js"></script>
-
 </body>
 </html>
