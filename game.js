@@ -1,14 +1,54 @@
 const tg = window.Telegram?.WebApp;
+
 if (tg) {
     tg.ready();
     tg.expand();
 }
-/* =========================
-   LANGUAGE SYSTEM
-========================= */
+
+/* =========================================================
+   CACTUC LUDO KING
+   Multiplayer + Computer
+========================================================= */
+
+const SERVER_URL =
+    "https://cactuc-ludo-serverbot.onrender.com";
+
+let socket = null;
+
+let playerId =
+    localStorage.getItem("cactuc_player_id");
+
+if (!playerId) {
+    playerId =
+        "p_" +
+        Math.random()
+            .toString(36)
+            .substring(2, 12);
+
+    localStorage.setItem(
+        "cactuc_player_id",
+        playerId
+    );
+}
+
+let playerName =
+    tg?.initDataUnsafe?.user?.first_name ||
+    localStorage.getItem("cactuc_player_name") ||
+    "Player";
+
+localStorage.setItem(
+    "cactuc_player_name",
+    playerName
+);
+
+/* =========================================================
+   TRANSLATIONS
+========================================================= */
+
 const translations = {
+
     fa: {
-        subtitle: "بازی لودو",
+        subtitle: "لودو چندنفره",
         create: "🏠 ساخت اتاق جدید",
         join: "🔑 ورود به اتاق",
         computer: "🤖 بازی با کامپیوتر",
@@ -17,20 +57,29 @@ const translations = {
         roomCode: "کد اتاق",
         copy: "📋 کپی کد",
         start: "▶️ شروع بازی",
-        joinRoom: "ورود به اتاق",
+        joinRoom: "ورود",
         enterCode: "کد ۶ رقمی",
         back: "برگشت",
         roll: "تاس",
-        redTurn: "نوبت قرمز",
         rollHint: "تاس را بزن",
-        copied: "کد کپی شد!",
-        invalid: "کد اتاق باید ۶ رقمی باشد.",
-        newRoom: "اتاق جدید ساخته شد.",
-        joined: "وارد اتاق شدی.",
-        computerGame: "بازی با کامپیوتر شروع شد."
+        waiting: "در انتظار بازیکنان...",
+        choosePlayers: "تعداد بازیکنان",
+        two: "۲ نفره",
+        three: "۳ نفره",
+        four: "۴ نفره",
+        created: "اتاق ساخته شد",
+        joined: "وارد اتاق شدی",
+        copied: "کد کپی شد",
+        roomFull: "اتاق پر است",
+        notFound: "اتاق پیدا نشد",
+        needPlayers: "حداقل دو بازیکن لازم است",
+        notYourTurn: "نوبت شما نیست",
+        computerStarted: "بازی با کامپیوتر شروع شد",
+        turn: "نوبت"
     },
+
     en: {
-        subtitle: "LUDO GAME",
+        subtitle: "MULTIPLAYER LUDO",
         create: "🏠 CREATE ROOM",
         join: "🔑 JOIN ROOM",
         computer: "🤖 PLAY VS COMPUTER",
@@ -39,21 +88,30 @@ const translations = {
         roomCode: "ROOM CODE",
         copy: "📋 COPY CODE",
         start: "▶️ START GAME",
-        joinRoom: "JOIN ROOM",
+        joinRoom: "JOIN",
         enterCode: "6 DIGIT CODE",
         back: "BACK",
         roll: "ROLL",
-        redTurn: "RED'S TURN",
         rollHint: "ROLL THE DICE",
-        copied: "Code copied!",
-        invalid: "Room code must contain 6 digits.",
-        newRoom: "New room created.",
-        joined: "You joined the room.",
-        computerGame: "Computer game started."
+        waiting: "Waiting for players...",
+        choosePlayers: "Number of players",
+        two: "2 PLAYERS",
+        three: "3 PLAYERS",
+        four: "4 PLAYERS",
+        created: "Room created",
+        joined: "Joined room",
+        copied: "Code copied",
+        roomFull: "Room is full",
+        notFound: "Room not found",
+        needPlayers: "At least 2 players required",
+        notYourTurn: "Not your turn",
+        computerStarted: "Computer game started",
+        turn: "TURN"
     },
+
     ar: {
-        subtitle: "لعبة لودو",
-        create: "🏠 إنشاء غرفة جديدة",
+        subtitle: "لودو متعددة اللاعبين",
+        create: "🏠 إنشاء غرفة",
         join: "🔑 دخول إلى غرفة",
         computer: "🤖 اللعب ضد الكمبيوتر",
         settings: "⚙️ الإعدادات",
@@ -65,17 +123,26 @@ const translations = {
         enterCode: "رمز من 6 أرقام",
         back: "رجوع",
         roll: "النرد",
-        redTurn: "دور الأحمر",
         rollHint: "ارمِ النرد",
-        copied: "تم نسخ الرمز!",
-        invalid: "يجب أن يتكون الرمز من 6 أرقام.",
-        newRoom: "تم إنشاء غرفة جديدة.",
-        joined: "لقد دخلت الغرفة.",
-        computerGame: "بدأت اللعبة ضد الكمبيوتر."
+        waiting: "في انتظار اللاعبين...",
+        choosePlayers: "عدد اللاعبين",
+        two: "لاعبان",
+        three: "3 لاعبين",
+        four: "4 لاعبين",
+        created: "تم إنشاء الغرفة",
+        joined: "تم الدخول",
+        copied: "تم نسخ الرمز",
+        roomFull: "الغرفة ممتلئة",
+        notFound: "الغرفة غير موجودة",
+        needPlayers: "مطلوب لاعبان على الأقل",
+        notYourTurn: "ليس دورك",
+        computerStarted: "بدأت اللعبة ضد الكمبيوتر",
+        turn: "دور"
     },
+
     de: {
-        subtitle: "LUDO SPIEL",
-        create: "🏠 NEUEN RAUM ERSTELLEN",
+        subtitle: "MULTIPLAYER LUDO",
+        create: "🏠 RAUM ERSTELLEN",
         join: "🔑 RAUM BEITRETEN",
         computer: "🤖 GEGEN COMPUTER",
         settings: "⚙️ EINSTELLUNGEN",
@@ -87,297 +154,751 @@ const translations = {
         enterCode: "6-STELLIGER CODE",
         back: "ZURÜCK",
         roll: "WÜRFEL",
-        redTurn: "ROT IST DRAN",
         rollHint: "WÜRFELN",
-        copied: "Code kopiert!",
-        invalid: "Der Raumcode muss 6 Ziffern haben.",
-        newRoom: "Neuer Raum erstellt.",
-        joined: "Du bist dem Raum beigetreten.",
-        computerGame: "Spiel gegen Computer gestartet."
+        waiting: "Warte auf Spieler...",
+        choosePlayers: "Anzahl Spieler",
+        two: "2 SPIELER",
+        three: "3 SPIELER",
+        four: "4 SPIELER",
+        created: "Raum erstellt",
+        joined: "Raum beigetreten",
+        copied: "Code kopiert",
+        roomFull: "Raum ist voll",
+        notFound: "Raum nicht gefunden",
+        needPlayers: "Mindestens 2 Spieler erforderlich",
+        notYourTurn: "Du bist nicht dran",
+        computerStarted: "Spiel gegen Computer gestartet",
+        turn: "ZUG"
     },
+
     ru: {
-        subtitle: "ИГРА ЛУДО",
+        subtitle: "ЛУДО МУЛЬТИПЛЕЕР",
         create: "🏠 СОЗДАТЬ КОМНАТУ",
         join: "🔑 ВОЙТИ В КОМНАТУ",
         computer: "🤖 ИГРАТЬ С КОМПЬЮТЕРОМ",
         settings: "⚙️ НАСТРОЙКИ",
         room: "🏠 ИГРОВАЯ КОМНАТА",
         roomCode: "КОД КОМНАТЫ",
-        copy: "📋 КОПИРОВАТЬ КОД",
+        copy: "📋 КОПИРОВАТЬ",
         start: "▶️ НАЧАТЬ ИГРУ",
         joinRoom: "ВОЙТИ",
         enterCode: "6-ЗНАЧНЫЙ КОД",
         back: "НАЗАД",
         roll: "КУБИК",
-        redTurn: "ХОД КРАСНОГО",
-        rollHint: "БРОСЬТЕ КУБИК",
-        copied: "Код скопирован!",
-        invalid: "Код должен содержать 6 цифр.",
-        newRoom: "Новая комната создана.",
-        joined: "Вы вошли в комнату.",
-        computerGame: "Игра с компьютером началась."
+        rollHint: "БРОСИТЬ КУБИК",
+        waiting: "Ожидание игроков...",
+        choosePlayers: "Количество игроков",
+        two: "2 ИГРОКА",
+        three: "3 ИГРОКА",
+        four: "4 ИГРОКА",
+        created: "Комната создана",
+        joined: "Вы вошли",
+        copied: "Код скопирован",
+        roomFull: "Комната заполнена",
+        notFound: "Комната не найдена",
+        needPlayers: "Нужно минимум 2 игрока",
+        notYourTurn: "Сейчас не ваш ход",
+        computerStarted: "Игра с компьютером началась",
+        turn: "ХОД"
     }
 };
-/* =========================
-   LANGUAGE
-========================= */
+
 let currentLanguage =
-    localStorage.getItem("cactuc_language") || "fa";
+    localStorage.getItem("cactuc_language") ||
+    "fa";
+
 function t(key) {
-    return translations[currentLanguage][key]
-        || translations.fa[key]
-        || key;
+    return (
+        translations[currentLanguage]?.[key] ||
+        translations.fa[key] ||
+        key
+    );
 }
+
+/* =========================================================
+   ELEMENTS
+========================================================= */
+
+const menu =
+    document.getElementById("menu");
+
+const roomScreen =
+    document.getElementById("roomScreen");
+
+const joinScreen =
+    document.getElementById("joinScreen");
+
+const gameScreen =
+    document.getElementById("gameScreen");
+
+const settings =
+    document.getElementById("settings");
+
+/* =========================================================
+   SCREEN
+========================================================= */
+
+function showScreen(screen) {
+
+    [
+        menu,
+        roomScreen,
+        joinScreen,
+        gameScreen
+    ].forEach(
+        element =>
+            element?.classList.add("hidden")
+    );
+
+    screen?.classList.remove("hidden");
+}
+
+/* =========================================================
+   LANGUAGE
+========================================================= */
+
 function applyLanguage() {
+
     document.documentElement.lang =
         currentLanguage;
+
     document.documentElement.dir =
         currentLanguage === "fa" ||
         currentLanguage === "ar"
             ? "rtl"
             : "ltr";
-    document.getElementById(
-        "subtitle"
-    ).textContent =
-        t("subtitle");
-    document.getElementById(
-        "createRoomBtn"
-    ).textContent =
-        t("create");
-    document.getElementById(
-        "joinRoomBtn"
-    ).textContent =
-        t("join");
-    document.getElementById(
-        "computerBtn"
-    ).textContent =
-        t("computer");
-    document.getElementById(
-        "settingsBtn"
-    ).title =
-        t("settings");
-    document.getElementById(
-        "copyCodeBtn"
-    ).textContent =
-        t("copy");
-    document.getElementById(
-        "startBtn"
-    ).textContent =
-        t("start");
-    document.getElementById(
-        "joinBtn"
-    ).textContent =
-        t("joinRoom");
-    document.getElementById(
-        "roomInput"
-    ).placeholder =
-        t("enterCode");
-    document.getElementById(
-        "backBtn"
-    ).textContent =
-        t("back");
-    document.getElementById(
-        "diceBtn"
-    ).lastElementChild.textContent =
-        t("roll");
-    document.getElementById(
-        "gameMessage"
-    ).textContent =
-        t("rollHint");
-    document.querySelector(
-        "#roomScreen h2"
-    ).textContent =
-        t("room");
-    document.querySelector(
-        ".roomCode small"
-    ).textContent =
-        t("roomCode");
+
+    const setText = (
+        id,
+        key
+    ) => {
+
+        const el =
+            document.getElementById(id);
+
+        if (el) {
+            el.textContent = t(key);
+        }
+    };
+
+    setText("subtitle", "subtitle");
+    setText("createRoomBtn", "create");
+    setText("joinRoomBtn", "join");
+    setText("computerBtn", "computer");
+    setText("copyCodeBtn", "copy");
+    setText("startBtn", "start");
+    setText("joinBtn", "joinRoom");
+    setText("backBtn", "back");
+
+    const input =
+        document.getElementById("roomInput");
+
+    if (input) {
+        input.placeholder =
+            t("enterCode");
+    }
+
+    const dice =
+        document.getElementById("diceBtn");
+
+    if (dice?.lastElementChild) {
+        dice.lastElementChild.textContent =
+            t("roll");
+    }
 }
-/* =========================
-   SCREEN CONTROL
-========================= */
-const menu =
-    document.getElementById("menu");
-const roomScreen =
-    document.getElementById("roomScreen");
-const joinScreen =
-    document.getElementById("joinScreen");
-const gameScreen =
-    document.getElementById("gameScreen");
-function showScreen(screen) {
-    menu.classList.add("hidden");
-    roomScreen.classList.add("hidden");
-    joinScreen.classList.add("hidden");
-    gameScreen.classList.add("hidden");
-    screen.classList.remove("hidden");
-}
-/* =========================
-   ROOM SYSTEM
-========================= */
+
+/* =========================================================
+   ROOM STATE
+========================================================= */
+
 let currentRoom = null;
-function createRoomCode() {
-    return Math.floor(
-        100000 +
-        Math.random() * 900000
-    ).toString();
+
+let selectedPlayers = 4;
+
+let connected = false;
+
+let localGameMode = false;
+
+/* =========================================================
+   PLAYER COUNT
+========================================================= */
+
+function choosePlayerCount() {
+
+    const choice =
+        prompt(
+            `${t("choosePlayers")}\n\n` +
+            `2 = ${t("two")}\n` +
+            `3 = ${t("three")}\n` +
+            `4 = ${t("four")}`
+        );
+
+    if (
+        choice === "2" ||
+        choice === "3" ||
+        choice === "4"
+    ) {
+
+        selectedPlayers =
+            Number(choice);
+
+        createRoom();
+    }
 }
-function createRoom() {
-    currentRoom =
-        createRoomCode();
-    document.getElementById(
-        "roomCode"
-    ).textContent =
-        currentRoom;
-    document.getElementById(
-        "roomPlayers"
-    ).innerHTML = `
-        <div class="roomPlayer">
-            🔴 ${getPlayerName()}
-        </div>
-        <div class="roomPlayer">
-            ⏳ Waiting for player...
-        </div>
-        <div class="roomPlayer">
-            ⏳ Waiting for player...
-        </div>
-        <div class="roomPlayer">
-            ⏳ Waiting for player...
-        </div>
-    `;
-    message(t("newRoom"));
-    showScreen(roomScreen);
+
+/* =========================================================
+   CREATE ROOM
+========================================================= */
+
+async function createRoom() {
+
+    try {
+
+        const response =
+            await fetch(
+                `${SERVER_URL}/api/room/create`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    }
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!data.ok) {
+            throw new Error(
+                "CREATE_FAILED"
+            );
+        }
+
+        currentRoom =
+            data.roomCode;
+
+        document.getElementById(
+            "roomCode"
+        ).textContent =
+            currentRoom;
+
+        renderRoomPlayers([
+            {
+                id: playerId,
+                name: playerName,
+                color: "red"
+            }
+        ]);
+
+        connectSocket();
+
+        showScreen(roomScreen);
+
+        message(t("created"));
+
+    } catch (error) {
+
+        console.error(error);
+
+        message(
+            "Server connection failed"
+        );
+    }
 }
-function joinRoom() {
+
+/* =========================================================
+   ROOM PLAYERS
+========================================================= */
+
+function renderRoomPlayers(
+    roomPlayers = []
+) {
+
+    const box =
+        document.getElementById(
+            "roomPlayers"
+        );
+
+    if (!box) return;
+
+    box.innerHTML = "";
+
+    const colors = [
+        "🔴",
+        "🟡",
+        "🟢",
+        "🔵"
+    ];
+
+    for (
+        let i = 0;
+        i < selectedPlayers;
+        i++
+    ) {
+
+        const player =
+            roomPlayers[i];
+
+        const div =
+            document.createElement(
+                "div"
+            );
+
+        div.className =
+            "roomPlayer";
+
+        if (player) {
+
+            div.textContent =
+                `${colors[i]} ${player.name}`;
+
+        } else {
+
+            div.textContent =
+                `⏳ ${t("waiting")}`;
+        }
+
+        box.appendChild(div);
+    }
+}
+
+/* =========================================================
+   JOIN ROOM
+========================================================= */
+
+async function joinRoom() {
+
     const input =
         document.getElementById(
             "roomInput"
         );
+
     const code =
         input.value.trim();
-    if (
-        !/^\d{6}$/.test(code)
-    ) {
-        message(t("invalid"));
+
+    if (!/^\d{6}$/.test(code)) {
+
+        message(
+            currentLanguage === "fa"
+                ? "کد باید ۶ رقمی باشد."
+                : "Invalid room code."
+        );
+
         return;
     }
-    currentRoom = code;
-    message(t("joined"));
-    startLocalGame();
-}
-/* =========================
-   PLAYER NAME
-========================= */
-function getPlayerName() {
-    if (
-        tg &&
-        tg.initDataUnsafe &&
-        tg.initDataUnsafe.user
-    ) {
-        return (
-            tg.initDataUnsafe.user.first_name
-            || "Player"
+
+    try {
+
+        const response =
+            await fetch(
+                `${SERVER_URL}/api/room/join`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify({
+                        roomCode: code,
+                        playerId,
+                        playerName
+                    })
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!data.ok) {
+
+            message(
+                data.error === "ROOM_FULL"
+                    ? t("roomFull")
+                    : t("notFound")
+            );
+
+            return;
+        }
+
+        currentRoom =
+            code;
+
+        selectedPlayers =
+            data.room.players.length;
+
+        renderRoomPlayers(
+            data.room.players
+        );
+
+        connectSocket();
+
+        showScreen(roomScreen);
+
+        message(t("joined"));
+
+    } catch (error) {
+
+        console.error(error);
+
+        message(
+            "Server connection failed"
         );
     }
-    return "Player";
 }
-/* =========================
-   COPY ROOM CODE
-========================= */
-async function copyRoomCode() {
+
+/* =========================================================
+   WEBSOCKET
+========================================================= */
+
+function connectSocket() {
+
+    if (!currentRoom) return;
+
+    if (
+        socket &&
+        socket.readyState ===
+            WebSocket.OPEN
+    ) {
+        joinSocketRoom();
+        return;
+    }
+
+    const wsURL =
+        SERVER_URL
+            .replace(
+                "https://",
+                "wss://"
+            )
+            .replace(
+                "http://",
+                "ws://"
+            );
+
+    socket =
+        new WebSocket(
+            wsURL
+        );
+
+    socket.onopen = () => {
+
+        connected = true;
+
+        joinSocketRoom();
+    };
+
+    socket.onmessage = event => {
+
+        let data;
+
+        try {
+            data =
+                JSON.parse(
+                    event.data
+                );
+        } catch {
+            return;
+        }
+
+        handleServerMessage(
+            data
+        );
+    };
+
+    socket.onerror = error => {
+
+        console.error(
+            "WebSocket error",
+            error
+        );
+    };
+
+    socket.onclose = () => {
+
+        connected = false;
+    };
+}
+
+function joinSocketRoom() {
+
+    if (
+        !socket ||
+        socket.readyState !==
+            WebSocket.OPEN
+    ) {
+        return;
+    }
+
+    socket.send(
+        JSON.stringify({
+            type: "JOIN_ROOM",
+            roomCode:
+                currentRoom,
+            playerId,
+            playerName
+        })
+    );
+}
+
+/* =========================================================
+   SERVER EVENTS
+========================================================= */
+
+function handleServerMessage(
+    data
+) {
+
+    switch (data.type) {
+
+        case "CONNECTED":
+
+            if (
+                data.room
+            ) {
+
+                selectedPlayers =
+                    Math.max(
+                        2,
+                        data.room.players.length
+                    );
+
+                renderRoomPlayers(
+                    data.room.players
+                );
+            }
+
+            break;
+
+        case "ROOM_UPDATED":
+
+            if (
+                data.room
+            ) {
+
+                renderRoomPlayers(
+                    data.room.players
+                );
+            }
+
+            break;
+
+        case "GAME_STARTED":
+
+            startLocalBoard();
+
+            break;
+
+        case "DICE_ROLLED":
+
+            showDice(
+                data.dice
+            );
+
+            break;
+
+        case "TURN_CHANGED":
+
+            updateTurn(
+                data.currentPlayer
+            );
+
+            break;
+
+        case "ERROR":
+
+            message(
+                translateError(
+                    data.error
+                )
+            );
+
+            break;
+    }
+}
+
+/* =========================================================
+   ERROR TRANSLATION
+========================================================= */
+
+function translateError(
+    error
+) {
+
+    const errors = {
+
+        ROOM_NOT_FOUND:
+            t("notFound"),
+
+        ROOM_FULL:
+            t("roomFull"),
+
+        NEED_AT_LEAST_2_PLAYERS:
+            t("needPlayers"),
+
+        NOT_YOUR_TURN:
+            t("notYourTurn")
+    };
+
+    return (
+        errors[error] ||
+        error
+    );
+}
+
+/* =========================================================
+   START MULTIPLAYER GAME
+========================================================= */
+
+function startMultiplayerGame() {
+
     if (!currentRoom) {
         return;
     }
-    try {
-        await navigator.clipboard.writeText(
-            currentRoom
-        );
-    } catch {
-        const temp =
-            document.createElement("input");
-        temp.value =
-            currentRoom;
-        document.body.appendChild(temp);
-        temp.select();
-        document.execCommand("copy");
-        temp.remove();
+
+    if (!socket) {
+        connectSocket();
     }
-    message(t("copied"));
+
+    if (
+        socket &&
+        socket.readyState ===
+            WebSocket.OPEN
+    ) {
+
+        socket.send(
+            JSON.stringify({
+                type:
+                    "START_GAME",
+                roomCode:
+                    currentRoom,
+                playerId
+            })
+        );
+    }
 }
-/* =========================
+
+/* =========================================================
+   COMPUTER GAME
+========================================================= */
+
+function startComputerGame() {
+
+    localGameMode = true;
+
+    selectedPlayers = 2;
+
+    resetLocalGame();
+
+    buildBoard();
+
+    renderGame();
+
+    showScreen(
+        gameScreen
+    );
+
+    message(
+        t("computerStarted")
+    );
+
+    setTimeout(
+        computerTurn,
+        1000
+    );
+}
+
+/* =========================================================
    LUDO ENGINE
-========================= */
+========================================================= */
+
 const colors = [
     "red",
     "yellow",
     "green",
     "blue"
 ];
+
 const playerNames = [
     "RED",
     "YELLOW",
     "GREEN",
     "BLUE"
 ];
+
 const startPositions = [
     0,
     13,
     26,
     39
 ];
+
 const path = [
+
     [6,1],
     [6,2],
     [6,3],
     [6,4],
     [6,5],
+
     [5,6],
     [4,6],
     [3,6],
     [2,6],
     [1,6],
+
     [0,6],
     [0,7],
     [0,8],
+
     [1,8],
     [2,8],
     [3,8],
     [4,8],
     [5,8],
+
     [6,9],
     [6,10],
     [6,11],
     [6,12],
     [6,13],
     [6,14],
+
     [7,14],
     [8,14],
+
     [8,13],
     [8,12],
     [8,11],
     [8,10],
     [8,9],
+
     [9,8],
     [10,8],
     [11,8],
     [12,8],
     [13,8],
     [14,8],
+
     [14,7],
     [14,6],
+
     [13,6],
     [12,6],
     [11,6],
     [10,6],
     [9,6],
+
     [8,5],
     [8,4],
     [8,3],
     [8,2],
     [8,1],
     [8,0],
+
     [7,0],
     [6,0]
 ];
+
 const safeSquares =
     new Set([
         0,
@@ -389,45 +910,90 @@ const safeSquares =
         39,
         47
     ]);
+
 let players = [];
+
 let currentPlayer = 0;
+
 let rolled = false;
+
 let currentRoll = 0;
+
 let gameStarted = false;
-function resetGame() {
+
+/* =========================================================
+   RESET
+========================================================= */
+
+function resetLocalGame() {
+
+    const activePlayers =
+        localGameMode
+            ? 2
+            : selectedPlayers;
+
     players =
-        colors.map(color => ({
-            color,
-            pieces: [
-                -1,
-                -1,
-                -1,
-                -1
-            ]
-        }));
+        colors
+            .slice(
+                0,
+                activePlayers
+            )
+            .map(
+                color => ({
+                    color,
+                    pieces: [
+                        -1,
+                        -1,
+                        -1,
+                        -1
+                    ]
+                })
+            );
+
     currentPlayer = 0;
+
     rolled = false;
+
     currentRoll = 0;
+
     gameStarted = true;
 }
+
+/* =========================================================
+   BOARD
+========================================================= */
+
 function buildBoard() {
+
     const board =
-        document.getElementById("board");
+        document.getElementById(
+            "board"
+        );
+
+    if (!board) return;
+
     board.innerHTML = "";
+
     for (
         let row = 0;
         row < 15;
         row++
     ) {
+
         for (
             let col = 0;
             col < 15;
             col++
         ) {
+
             const cell =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
+
             cell.className =
                 "cell";
+
             if (
                 row <= 5 &&
                 col <= 5
@@ -436,6 +1002,7 @@ function buildBoard() {
                     "baseRed"
                 );
             }
+
             if (
                 row <= 5 &&
                 col >= 9
@@ -444,6 +1011,7 @@ function buildBoard() {
                     "baseYellow"
                 );
             }
+
             if (
                 row >= 9 &&
                 col <= 5
@@ -452,6 +1020,7 @@ function buildBoard() {
                     "baseGreen"
                 );
             }
+
             if (
                 row >= 9 &&
                 col >= 9
@@ -460,17 +1029,31 @@ function buildBoard() {
                     "baseBlue"
                 );
             }
-            board.appendChild(cell);
+
+            board.appendChild(
+                cell
+            );
         }
     }
+
     path.forEach(
         ([row, col], index) => {
+
             const cell =
-                getCell(row, col);
+                getCell(
+                    row,
+                    col
+                );
+
+            if (!cell) return;
+
             cell.className =
                 "cell path";
+
             if (
-                safeSquares.has(index)
+                safeSquares.has(
+                    index
+                )
             ) {
                 cell.classList.add(
                     "safe"
@@ -478,93 +1061,119 @@ function buildBoard() {
             }
         }
     );
+
     for (
         let i = 0;
         i < 5;
         i++
     ) {
+
         getCell(
             5 - i,
             7
-        ).classList.add(
+        )?.classList.add(
             "laneRed"
         );
+
         getCell(
             7,
             9 + i
-        ).classList.add(
+        )?.classList.add(
             "laneYellow"
         );
+
         getCell(
             9 + i,
             7
-        ).classList.add(
+        )?.classList.add(
             "laneGreen"
         );
+
         getCell(
             7,
             5 - i
-        ).classList.add(
+        )?.classList.add(
             "laneBlue"
         );
     }
+
     for (
         let row = 6;
         row <= 8;
         row++
     ) {
+
         for (
             let col = 6;
             col <= 8;
             col++
         ) {
+
             getCell(
                 row,
                 col
-            ).classList.add(
+            )?.classList.add(
                 "center"
             );
         }
     }
 }
+
 function getCell(
     row,
     col
 ) {
-    return document.getElementById(
-        "board"
-    ).children[
+
+    const board =
+        document.getElementById(
+            "board"
+        );
+
+    if (!board) return null;
+
+    return board.children[
         row * 15 + col
     ];
 }
+
+/* =========================================================
+   POSITION
+========================================================= */
+
 function getPosition(
     playerIndex,
     pieceIndex
 ) {
+
     const distance =
         players[playerIndex]
             .pieces[pieceIndex];
+
     if (
         distance < 0 ||
         distance === 57
     ) {
         return null;
     }
+
     if (
         distance <= 51
     ) {
+
         const index =
             (
                 startPositions[
                     playerIndex
-                ]
-                +
+                ] +
                 distance
             ) % 52;
+
         return path[index];
     }
+
     const lane =
         distance - 52;
+
     if (
         playerIndex === 0
     ) {
@@ -573,6 +1182,7 @@ function getPosition(
             7
         ];
     }
+
     if (
         playerIndex === 1
     ) {
@@ -581,6 +1191,7 @@ function getPosition(
             9 + lane
         ];
     }
+
     if (
         playerIndex === 2
     ) {
@@ -589,69 +1200,102 @@ function getPosition(
             7
         ];
     }
+
     return [
         7,
         5 - lane
     ];
 }
+
+/* =========================================================
+   MOVE RULE
+========================================================= */
+
 function canMove(
     playerIndex,
     pieceIndex,
     number
 ) {
+
     const value =
         players[playerIndex]
             .pieces[pieceIndex];
+
     if (
         value === 57
     ) {
         return false;
     }
+
     if (
         value === -1
     ) {
         return number === 6;
     }
+
     return (
         value + number <= 57
     );
 }
-/* =========================
-   RENDER PIECES
-========================= */
+
+/* =========================================================
+   RENDER
+========================================================= */
+
 function renderGame() {
+
     document
-        .querySelectorAll(".piece")
+        .querySelectorAll(
+            ".piece"
+        )
         .forEach(
             piece =>
                 piece.remove()
         );
+
     players.forEach(
-        (player, playerIndex) => {
+        (
+            player,
+            playerIndex
+        ) => {
+
             player.pieces.forEach(
-                (value, pieceIndex) => {
+                (
+                    value,
+                    pieceIndex
+                ) => {
+
                     const position =
                         getPosition(
                             playerIndex,
                             pieceIndex
                         );
+
                     if (!position) {
                         return;
                     }
+
                     const cell =
                         getCell(
                             position[0],
                             position[1]
                         );
+
+                    if (!cell) {
+                        return;
+                    }
+
                     const piece =
                         document.createElement(
                             "button"
                         );
+
                     piece.className =
                         `piece ${player.color}`;
+
                     if (
                         playerIndex ===
-                        currentPlayer &&
+                            currentPlayer &&
                         rolled &&
                         canMove(
                             playerIndex,
@@ -659,71 +1303,129 @@ function renderGame() {
                             currentRoll
                         )
                     ) {
+
                         piece.classList.add(
                             "selectable"
                         );
                     }
+
                     piece.onclick =
                         () => {
+
                             movePiece(
                                 playerIndex,
                                 pieceIndex
                             );
                         };
+
                     cell.appendChild(
                         piece
                     );
                 }
             );
+
             const finished =
                 player.pieces.filter(
-                    x => x === 57
+                    value =>
+                        value === 57
                 ).length;
-            const card =
-                document.querySelector(
-                    `.${player.color}`
+
+            const cards =
+                document.querySelectorAll(
+                    `.player.${player.color}`
                 );
-            if (card) {
-                const span =
-                    card.querySelector(
-                        "span"
-                    );
-                if (span) {
-                    span.textContent =
-                        `${finished}/4`;
+
+            cards.forEach(
+                card => {
+
+                    const span =
+                        card.querySelector(
+                            "span"
+                        );
+
+                    if (span) {
+                        span.textContent =
+                            `${finished}/4`;
+                    }
                 }
-            }
+            );
         }
     );
-    const turnText =
-        document.getElementById(
-            "turnText"
-        );
-    turnText.textContent =
-        currentLanguage === "fa"
-            ? `نوبت ${playerNames[currentPlayer]}`
-            : `${playerNames[currentPlayer]}'S TURN`;
-}
-/* =========================
-   DICE
-========================= */
-document
-    .getElementById("diceBtn")
-    .addEventListener(
-        "click",
-        rollDice
+
+    updateTurn(
+        currentPlayer
     );
+}
+
+/* =========================================================
+   DICE
+========================================================= */
+
 function rollDice() {
+
     if (
         !gameStarted ||
         rolled
     ) {
         return;
     }
+
+    if (
+        localGameMode &&
+        currentPlayer !== 0
+    ) {
+        return;
+    }
+
     currentRoll =
         Math.floor(
             Math.random() * 6
         ) + 1;
+
+    showDice(
+        currentRoll
+    );
+
+    rolled = true;
+
+    renderGame();
+
+    const possible =
+        players[currentPlayer]
+            .pieces
+            .some(
+                (
+                    _,
+                    index
+                ) =>
+                    canMove(
+                        currentPlayer,
+                        index,
+                        currentRoll
+                    )
+            );
+
+    if (!possible) {
+
+        rolled = false;
+
+        message(
+            currentLanguage === "fa"
+                ? "حرکت ممکن نیست."
+                : "No move available."
+        );
+
+        setTimeout(
+            nextTurn,
+            700
+        );
+    }
+}
+
+function showDice(
+    number
+) {
+
     const faces = [
         "⚀",
         "⚁",
@@ -732,53 +1434,38 @@ function rollDice() {
         "⚄",
         "⚅"
     ];
-    document.getElementById(
-        "diceBtn"
-    ).firstChild.textContent =
-        faces[currentRoll - 1];
-    rolled = true;
-    renderGame();
-    const possible =
-        players[currentPlayer]
-            .pieces
-            .some(
-                (_, index) =>
-                    canMove(
-                        currentPlayer,
-                        index,
-                        currentRoll
-                    )
-            );
-    if (!possible) {
-        rolled = false;
+
+    const dice =
         document.getElementById(
-            "gameMessage"
-        ).textContent =
-            currentRoll === 6
-                ? "No move available."
-                : "No move available.";
-        setTimeout(
-            nextTurn,
-            700
+            "diceBtn"
         );
-    }
+
+    if (!dice) return;
+
+    dice.firstChild.textContent =
+        faces[number - 1];
 }
-/* =========================
-   MOVE
-========================= */
+
+/* =========================================================
+   MOVE PIECE
+========================================================= */
+
 function movePiece(
     playerIndex,
     pieceIndex
 ) {
+
     if (
         playerIndex !==
         currentPlayer
     ) {
         return;
     }
+
     if (!rolled) {
         return;
     }
+
     if (
         !canMove(
             playerIndex,
@@ -788,9 +1475,11 @@ function movePiece(
     ) {
         return;
     }
+
     let value =
         players[playerIndex]
             .pieces[pieceIndex];
+
     if (
         value === -1
     ) {
@@ -798,91 +1487,121 @@ function movePiece(
     } else {
         value += currentRoll;
     }
+
     players[playerIndex]
         .pieces[pieceIndex] =
         value;
+
     capture(
         playerIndex,
         pieceIndex
     );
+
     rolled = false;
+
     renderGame();
+
     if (
         players[playerIndex]
             .pieces
             .every(
-                x => x === 57
+                value =>
+                    value === 57
             )
     ) {
+
         alert(
-            `${playerNames[playerIndex]} WINS! 🏆`
+            `${playerNames[playerIndex]} 🏆`
         );
+
         return;
     }
+
     if (
         currentRoll === 6
     ) {
-        document.getElementById(
-            "gameMessage"
-        ).textContent =
-            "SIX! Roll again.";
+
+        message(
+            currentLanguage === "fa"
+                ? "۶ آمد! دوباره تاس بزن."
+                : "SIX! Roll again."
+        );
+
         return;
     }
+
     setTimeout(
         nextTurn,
         500
     );
 }
-/* =========================
+
+/* =========================================================
    CAPTURE
-========================= */
+========================================================= */
+
 function capture(
     playerIndex,
     pieceIndex
 ) {
+
     const value =
         players[playerIndex]
             .pieces[pieceIndex];
+
     if (
         value < 0 ||
         value > 51
     ) {
         return;
     }
+
     const position =
         (
-            startPositions[playerIndex]
-            +
+            startPositions[
+                playerIndex
+            ] +
             value
         ) % 52;
+
     if (
-        safeSquares.has(position)
+        safeSquares.has(
+            position
+        )
     ) {
         return;
     }
+
     players.forEach(
-        (opponent, opponentIndex) => {
+        (
+            opponent,
+            opponentIndex
+        ) => {
+
             if (
                 opponentIndex ===
                 playerIndex
             ) {
                 return;
             }
+
             opponent.pieces =
                 opponent.pieces.map(
                     enemyValue => {
+
                         if (
                             enemyValue >= 0 &&
                             enemyValue <= 51
                         ) {
+
                             const enemyPosition =
                                 (
                                     startPositions[
                                         opponentIndex
-                                    ]
-                                    +
+                                    ] +
                                     enemyValue
                                 ) % 52;
+
                             if (
                                 enemyPosition ===
                                 position
@@ -890,221 +1609,416 @@ function capture(
                                 return -1;
                             }
                         }
+
                         return enemyValue;
                     }
                 );
         }
     );
 }
-/* =========================
+
+/* =========================================================
    TURN
-========================= */
+========================================================= */
+
 function nextTurn() {
+
     currentPlayer =
         (
             currentPlayer + 1
-        ) % 4;
+        ) %
+        players.length;
+
+    rolled = false;
+
     renderGame();
-    /*
-        Simple local AI
-    */
+
     if (
+        localGameMode &&
         currentPlayer !== 0
     ) {
+
         setTimeout(
-            () => {
-                rollDice();
-                setTimeout(
-                    botChoosePiece,
-                    500
-                );
-            },
-            600
+            computerTurn,
+            800
         );
     }
 }
-function botChoosePiece() {
-    if (!rolled) {
-        return;
-    }
-    const possible =
-        players[currentPlayer]
-            .pieces
-            .map(
-                (_, index) =>
-                    index
-            )
-            .filter(
-                index =>
-                    canMove(
-                        currentPlayer,
-                        index,
-                        currentRoll
-                    )
-            );
+
+function updateTurn(
+    playerIndex
+) {
+
+    const turn =
+        document.getElementById(
+            "turnText"
+        );
+
+    if (!turn) return;
+
+    const name =
+        playerNames[
+            playerIndex
+        ] || "PLAYER";
+
     if (
-        possible.length === 0
+        currentLanguage === "fa"
+    ) {
+
+        turn.textContent =
+            `${t("turn")} ${name}`;
+
+    } else {
+
+        turn.textContent =
+            `${name}'S ${t("turn")}`;
+    }
+}
+
+/* =========================================================
+   COMPUTER AI
+========================================================= */
+
+function computerTurn() {
+
+    if (
+        !localGameMode ||
+        currentPlayer === 0
     ) {
         return;
     }
-    let chosen =
-        possible[0];
-    /*
-        Prefer HOME move.
-    */
-    for (
-        const index of possible
-    ) {
-        const value =
-            players[currentPlayer]
-                .pieces[index];
-        const newValue =
-            value === -1
-                ? 0
-                : value + currentRoll;
-        if (
-            newValue === 57
-        ) {
-            chosen = index;
-            break;
-        }
-    }
-    movePiece(
-        currentPlayer,
-        chosen
+
+    rollDice();
+
+    setTimeout(
+        () => {
+
+            if (!rolled) {
+                return;
+            }
+
+            const possible =
+                players[currentPlayer]
+                    .pieces
+                    .map(
+                        (
+                            _,
+                            index
+                        ) => index
+                    )
+                    .filter(
+                        index =>
+                            canMove(
+                                currentPlayer,
+                                index,
+                                currentRoll
+                            )
+                    );
+
+            if (
+                possible.length === 0
+            ) {
+                return;
+            }
+
+            let chosen =
+                possible[0];
+
+            for (
+                const index
+                of possible
+            ) {
+
+                const value =
+                    players[
+                        currentPlayer
+                    ].pieces[index];
+
+                const newValue =
+                    value === -1
+                        ? 0
+                        : value +
+                          currentRoll;
+
+                if (
+                    newValue === 57
+                ) {
+
+                    chosen =
+                        index;
+
+                    break;
+                }
+            }
+
+            movePiece(
+                currentPlayer,
+                chosen
+            );
+
+        },
+        600
     );
 }
-/* =========================
-   LOCAL COMPUTER GAME
-========================= */
-function startLocalGame() {
-    resetGame();
+
+/* =========================================================
+   START BOARD
+========================================================= */
+
+function startLocalBoard() {
+
+    localGameMode = false;
+
+    resetLocalGame();
+
     buildBoard();
+
     renderGame();
-    showScreen(gameScreen);
+
+    showScreen(
+        gameScreen
+    );
 }
-/* =========================
+
+/* =========================================================
+   COPY CODE
+========================================================= */
+
+async function copyRoomCode() {
+
+    if (!currentRoom) {
+        return;
+    }
+
+    try {
+
+        await navigator.clipboard.writeText(
+            currentRoom
+        );
+
+    } catch {
+
+        const input =
+            document.createElement(
+                "input"
+            );
+
+        input.value =
+            currentRoom;
+
+        document.body.appendChild(
+            input
+        );
+
+        input.select();
+
+        document.execCommand(
+            "copy"
+        );
+
+        input.remove();
+    }
+
+    message(
+        t("copied")
+    );
+}
+
+/* =========================================================
+   MESSAGE
+========================================================= */
+
+function message(
+    text
+) {
+
+    const box =
+        document.getElementById(
+            "gameMessage"
+        );
+
+    if (box) {
+        box.textContent =
+            text;
+    }
+}
+
+/* =========================================================
    BUTTONS
-========================= */
+========================================================= */
+
 document
     .getElementById(
         "createRoomBtn"
     )
-    .onclick =
-        createRoom;
+    ?.addEventListener(
+        "click",
+        choosePlayerCount
+    );
+
 document
     .getElementById(
         "joinRoomBtn"
     )
-    .onclick =
+    ?.addEventListener(
+        "click",
         () => {
+
             showScreen(
                 joinScreen
             );
-        };
+        }
+    );
+
 document
     .getElementById(
         "computerBtn"
     )
-    .onclick =
-        () => {
-            message(
-                t("computerGame")
-            );
-            startLocalGame();
-        };
+    ?.addEventListener(
+        "click",
+        startComputerGame
+    );
+
 document
     .getElementById(
         "copyCodeBtn"
     )
-    .onclick =
-        copyRoomCode;
+    ?.addEventListener(
+        "click",
+        copyRoomCode
+    );
+
 document
     .getElementById(
         "startBtn"
     )
-    .onclick =
-        startLocalGame;
+    ?.addEventListener(
+        "click",
+        startMultiplayerGame
+    );
+
 document
     .getElementById(
         "joinBtn"
     )
-    .onclick =
-        joinRoom;
+    ?.addEventListener(
+        "click",
+        joinRoom
+    );
+
 document
     .getElementById(
         "backBtn"
     )
-    .onclick =
+    ?.addEventListener(
+        "click",
         () => {
-            showScreen(menu);
-        };
-/* =========================
+
+            showScreen(
+                menu
+            );
+        }
+    );
+
+document
+    .getElementById(
+        "diceBtn"
+    )
+    ?.addEventListener(
+        "click",
+        () => {
+
+            if (
+                localGameMode
+            ) {
+
+                rollDice();
+
+                return;
+            }
+
+            if (
+                socket &&
+                socket.readyState ===
+                    WebSocket.OPEN
+            ) {
+
+                socket.send(
+                    JSON.stringify({
+                        type:
+                            "ROLL_DICE",
+                        roomCode:
+                            currentRoom,
+                        playerId
+                    })
+                );
+            }
+        }
+    );
+
+/* =========================================================
    SETTINGS
-========================= */
+========================================================= */
+
 document
     .getElementById(
         "settingsBtn"
     )
-    .onclick =
+    ?.addEventListener(
+        "click",
         () => {
-            document
-                .getElementById(
-                    "settings"
-                )
-                .classList
-                .remove("hidden");
-        };
+
+            settings?.classList.remove(
+                "hidden"
+            );
+        }
+    );
+
 document
     .getElementById(
         "closeSettings"
     )
-    .onclick =
+    ?.addEventListener(
+        "click",
         () => {
-            document
-                .getElementById(
-                    "settings"
-                )
-                .classList
-                .add("hidden");
-        };
+
+            settings?.classList.add(
+                "hidden"
+            );
+        }
+    );
+
 document
     .querySelectorAll(
         "[data-lang]"
     )
     .forEach(
         button => {
-            button.onclick =
+
+            button.addEventListener(
+                "click",
                 () => {
+
                     currentLanguage =
                         button.dataset.lang;
+
                     localStorage.setItem(
                         "cactuc_language",
                         currentLanguage
                     );
+
                     applyLanguage();
-                    document
-                        .getElementById(
-                            "settings"
-                        )
-                        .classList
-                        .add("hidden");
-                };
+
+                    settings?.classList.add(
+                        "hidden"
+                    );
+                }
+            );
         }
     );
-/* =========================
-   MESSAGE
-========================= */
-function message(text) {
-    const box =
-        document.getElementById(
-            "gameMessage"
-        );
-    if (box) {
-        box.textContent = text;
-    }
-}
-/* =========================
+
+/* =========================================================
    START
-========================= */
+========================================================= */
+
 applyLanguage();
