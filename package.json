@@ -1,5 +1,5 @@
 {
-  "name": "cactuc-ludo-server",
+  "name": "cactuc-ludo-king-server",
   "version": "1.0.0",
   "description": "CACTUC LUDO KING multiplayer server",
   "main": "server.js",
@@ -8,9 +8,7 @@
   },
   "dependencies": {
     "express": "^4.21.2",
-    "ws": "^8.18.0"
-  },
-  "engines": {
-    "node": ">=18"
+    "socket.io": "^4.8.1",
+    "node-telegram-bot-api": "^0.66.0"
   }
 }
